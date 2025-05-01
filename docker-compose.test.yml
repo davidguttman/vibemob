@@ -6,8 +6,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.git-server
-    # Add command to run sshd in foreground debug mode
-    command: ["/usr/sbin/sshd", "-D", "-e"]
+    # Add command to chown/chmod the mounted key, then run sshd
+    command: >
+      sh -c '
+        chown git:git /home/git/.ssh/authorized_keys && \
+        chmod 600 /home/git/.ssh/authorized_keys && \
+        /usr/sbin/sshd -D -e
+      '
     ports:
       - "2222:22" # Expose SSH port to host for direct testing
     volumes:
@@ -33,7 +38,6 @@ services:
     # Environment variables needed by the tests
     environment:
       - NODE_ENV=test
-      - ECHOPROXIA_MODE=${ECHOPROXIA_MODE:-replay} # Inherit or default
       - WORKSPACE_DIR=/app/workspace # Test workspace *inside* test-runner
       # REPO_URL and SSH_PRIVATE_KEY_B64 will be passed via `docker compose exec`
     depends_on:

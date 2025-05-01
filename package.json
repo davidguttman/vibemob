@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "./scripts/run-tests.sh",
+    "test:reset": "./scripts/reset-test-env.sh",
     "test:container": "ava --serial"
   },
   "keywords": [],
