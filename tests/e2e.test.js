@@ -165,69 +165,212 @@ test('Phase 2.3: should create WORKING_BRANCH if it doesn\'t exist', async t => 
 }); 
 
 test('Phase 2.4: should checkout existing remote WORKING_BRANCH', async t => {
-  const setupLocalPath = path.join(tempDir, 'repo-phase2.4-setup');
-  const testLocalPath = path.join(tempDir, 'repo-phase2.4-test');
+  // Use a single local path for setup, execution, and cleanup
+  const localPath = path.join(tempDir, 'repo-phase2.4');
+  let branchPushed = false;
 
-  // --- Setup: Create and push the branch from a separate clone ---
   try {
-    // 1. Clone for setup
-    await gitService.cloneRepo({ repoUrl: REPO_URL, localPath: setupLocalPath });
+    // --- Setup ---
+    // 1. Clone repository
+    await gitService.cloneRepo({ repoUrl: REPO_URL, localPath });
+    const git = simpleGit(localPath);
 
     // 2. Create branch locally
-    await gitService.checkoutOrCreateBranch({ localPath: setupLocalPath, branchName: WORKING_BRANCH });
+    await git.checkoutLocalBranch(WORKING_BRANCH);
 
     // 3. Make a commit (needed to push the branch)
-    const gitSetup = simpleGit(setupLocalPath);
-    await fs.writeFile(path.join(setupLocalPath, 'phase2.4.txt'), 'test');
-    await gitSetup.add('.');
-    // Configure git user for the commit
-    await gitSetup.addConfig('user.name', 'Test Bot');
-    await gitSetup.addConfig('user.email', 'test@vibemob.invalid');
-    await gitSetup.commit('feat: add phase 2.4 test file');
+    await fs.writeFile(path.join(localPath, 'phase2.4.txt'), 'test');
+    await git.add('.');
+    await git.addConfig('user.name', 'Test Bot 2.4', true, 'local');
+    await git.addConfig('user.email', 'test2.4@vibemob.invalid', true, 'local');
+    await git.commit('feat: add phase 2.4 test file');
 
-    // 4. Push the branch (this function doesn't exist yet)
-    // Need to handle SSH key setup within pushBranch
-    await gitService.pushBranch({ localPath: setupLocalPath, branchName: WORKING_BRANCH });
+    // 4. Push the branch
+    await gitService.pushBranch({ localPath, branchName: WORKING_BRANCH });
+    branchPushed = true;
+
+    // --- Execution --- 
+    // 5. Simulate a fresh start: Switch back to main and delete local WORKING_BRANCH
+    await git.checkout(STARTING_BRANCH);
+    await git.deleteLocalBranch(WORKING_BRANCH, true); // Force delete
+
+    // 6. Run the function under test: checkoutOrCreateBranch
+    // It should detect the remote branch and check it out locally with tracking
+    const checkoutOrCreatePromise = gitService.checkoutOrCreateBranch({
+      localPath,
+      branchName: WORKING_BRANCH,
+    });
+    await t.notThrowsAsync(checkoutOrCreatePromise, 'Checkout or create operation failed for existing remote branch');
+
+    // --- Assertions ---
+    // 7. Verify current branch is WORKING_BRANCH
+    const currentBranch = await gitService.getCurrentBranch({ localPath });
+    t.is(currentBranch, WORKING_BRANCH, `Current branch should be ${WORKING_BRANCH}`);
+
+    // 8. Verify branch exists locally and remotely (and tracks)
+    const branches = await gitService.listBranches({ localPath }); // Fetches origin
+    const remoteBranchName = `remotes/origin/${WORKING_BRANCH}`;
+    t.true(branches.all.includes(WORKING_BRANCH), 'WORKING_BRANCH should exist locally after checkout/create');
+    t.true(
+      branches.all.some(b => b.startsWith('remotes/origin/') && b.endsWith(WORKING_BRANCH)),
+      `WORKING_BRANCH should exist on remote origin (${remoteBranchName})`
+    );
+    const status = await git.status();
+    t.is(status.tracking, `origin/${WORKING_BRANCH}`, 'Local branch should track remote branch');
 
   } catch (err) {
-    t.fail(`Setup failed for Phase 2.4: ${err}`);
-    return; // Stop test if setup fails
+    t.fail(`Test failed for Phase 2.4: ${err}`);
   } finally {
-    // Clean up the setup repo regardless of success/failure
-    await fs.rm(setupLocalPath, { recursive: true, force: true });
+    // --- Cleanup ---
+    // Delete the remote branch if it was pushed
+    if (branchPushed && localPath) {
+        try {
+            // Need simple-git instance for cleanup in case setup failed partially
+            const gitCleanup = simpleGit(localPath); 
+            // Ensure user identity is set for cleanup operations
+            await gitCleanup.addConfig('user.name', 'Cleanup Bot 2.4', true, 'local').catch(()=>{}); // Ignore config errors during cleanup
+            await gitCleanup.addConfig('user.email', 'cleanup2.4@vibemob.invalid', true, 'local').catch(()=>{});
+            await gitService.deleteRemoteBranch({ localPath, branchName: WORKING_BRANCH });
+        } catch (cleanupErr) {
+            console.warn(`Phase 2.4: Warning during remote branch cleanup: ${cleanupErr.message}`);
+        }
+    }
+    // Local directory cleanup happens in test.afterEach.always
   }
-  // --- End Setup ---
+}); 
 
-  // --- Test Execution: Clone again and checkout/create ---
-  // 1. Clone again for the actual test
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath: testLocalPath }),
-    'Clone operation failed for Phase 2.4 test execution'
-  );
+test('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remotely and locally diverged', async t => {
+  const localPath = path.join(tempDir, 'repo-phase2.5');
+  const testFileName = 'phase2.5.txt';
+  const initialContent = 'initial remote content';
+  const localChangeContent = 'local change';
+  let branchPushed = false;
 
-  // 2. Checkout or Create Branch (should find the remote branch now)
-  const checkoutOrCreatePromise = gitService.checkoutOrCreateBranch({
-    localPath: testLocalPath,
-    branchName: WORKING_BRANCH,
-  });
-  await t.notThrowsAsync(checkoutOrCreatePromise, 'Checkout or create operation failed for existing remote branch');
+  try {
+    // --- Setup ---
+    // 1. Clone repository
+    await gitService.cloneRepo({ repoUrl: REPO_URL, localPath });
+    const git = simpleGit(localPath);
 
-  // 3. Verify current branch is WORKING_BRANCH
-  const currentBranch = await gitService.getCurrentBranch({ localPath: testLocalPath });
-  t.is(currentBranch, WORKING_BRANCH, `Current branch should be ${WORKING_BRANCH}`);
+    // 2. Create and push the initial state of WORKING_BRANCH
+    await git.checkoutLocalBranch(WORKING_BRANCH);
+    await fs.writeFile(path.join(localPath, testFileName), initialContent);
+    await git.add('.');
+    await git.addConfig('user.name', 'Test Bot 2.5 Setup', true, 'local');
+    await git.addConfig('user.email', 'test2.5_setup@vibemob.invalid', true, 'local');
+    await git.commit('feat: add initial phase 2.5 test file');
+    await gitService.pushBranch({ localPath, branchName: WORKING_BRANCH });
+    branchPushed = true;
 
-  // 4. Verify branch exists locally and remotely
-  const branches = await gitService.listBranches({ localPath: testLocalPath });
-  const remoteBranchName = `remotes/origin/${WORKING_BRANCH}`;
-  t.true(branches.all.includes(WORKING_BRANCH), 'WORKING_BRANCH should exist locally');
-  t.true(
-    branches.all.some(b => b.startsWith('remotes/origin/') && b.endsWith(WORKING_BRANCH)),
-    `WORKING_BRANCH should exist on remote origin (${remoteBranchName})`
-  );
+    // 3. Make a local diverging commit
+    await fs.writeFile(path.join(localPath, testFileName), localChangeContent);
+    await git.add('.');
+    // Use different user config for the local commit for clarity if needed
+    await git.addConfig('user.name', 'Test Bot 2.5 Local', true, 'local'); 
+    await git.addConfig('user.email', 'test2.5_local@vibemob.invalid', true, 'local');
+    await git.commit('chore: local divergent modification');
 
-  // Optional: Verify upstream tracking is set correctly
-  const gitTest = simpleGit(testLocalPath);
-  const status = await gitTest.status();
-  t.is(status.tracking, `origin/${WORKING_BRANCH}`, 'Local branch should track remote branch');
+    // Verify local change exists before reset
+    const contentBeforeReset = await fs.readFile(path.join(localPath, testFileName), 'utf-8');
+    t.is(contentBeforeReset, localChangeContent, 'Local change should exist before reset');
+    const logBeforeReset = await git.log();
+    t.true(logBeforeReset.latest.message.includes('local divergent modification'), 'Local commit should exist before reset');
 
+    // --- Execution ---
+    // 4. Run checkoutOrCreateBranch again - this should trigger the reset
+    const resetPromise = gitService.checkoutOrCreateBranch({
+      localPath,
+      branchName: WORKING_BRANCH,
+    });
+    await t.notThrowsAsync(resetPromise, 'Reset operation (via checkoutOrCreateBranch) failed');
+
+    // --- Assertions ---
+    // 5. Verify local change is gone (hard reset successful)
+    const contentAfterReset = await fs.readFile(path.join(localPath, testFileName), 'utf-8');
+    t.not(contentAfterReset, localChangeContent, 'Local change should be gone after reset');
+    // Trim comparison for safety against newline inconsistencies
+    t.is(contentAfterReset.trim(), initialContent.trim(), 'File content should match initial remote state after reset');
+
+    // 6. Verify the local commit is gone
+    const logAfterReset = await git.log();
+    t.false(logAfterReset.latest.message.includes('local divergent modification'), 'Local commit should be gone after reset');
+    t.true(logAfterReset.latest.message.includes('initial phase 2.5'), 'Latest commit should be the initial one after reset');
+
+  } catch (err) {
+    t.fail(`Test failed for Phase 2.5: ${err}`);
+  } finally {
+     // --- Cleanup ---
+    // Delete the remote branch if it was pushed
+    if (branchPushed && localPath) {
+      try {
+         const gitCleanup = simpleGit(localPath); 
+         await gitCleanup.addConfig('user.name', 'Cleanup Bot 2.5', true, 'local').catch(()=>{}); 
+         await gitCleanup.addConfig('user.email', 'cleanup2.5@vibemob.invalid', true, 'local').catch(()=>{});
+         await gitService.deleteRemoteBranch({ localPath, branchName: WORKING_BRANCH });
+      } catch (cleanupErr) {
+         console.warn(`Phase 2.5: Warning during remote branch cleanup: ${cleanupErr.message}`);
+      }
+    }
+    // Local directory cleanup happens in test.afterEach.always
+  }
+}); 
+
+test('Phase 2.6: should keep local WORKING_BRANCH if remote doesn\'t exist', async t => {
+  const localPath = path.join(tempDir, 'repo-phase2.6');
+  const testFileName = 'phase2.6.txt';
+  const localContent = 'local only content';
+
+  try {
+    // --- Setup ---
+    // 1. Clone repository
+    await gitService.cloneRepo({ repoUrl: REPO_URL, localPath });
+    const git = simpleGit(localPath);
+
+    // 2. Create WORKING_BRANCH locally ONLY (do not push)
+    await git.checkoutLocalBranch(WORKING_BRANCH);
+
+    // 3. Make a local commit
+    await fs.writeFile(path.join(localPath, testFileName), localContent);
+    await git.add('.');
+    await git.addConfig('user.name', 'Test Bot 2.6', true, 'local');
+    await git.addConfig('user.email', 'test2.6@vibemob.invalid', true, 'local');
+    await git.commit('feat: add local-only phase 2.6 test file');
+
+    // Verify local state before the call
+    const contentBefore = await fs.readFile(path.join(localPath, testFileName), 'utf-8');
+    t.is(contentBefore, localContent, 'Local content should exist before call');
+    const logBefore = await git.log();
+    t.true(logBefore.latest.message.includes('local-only'), 'Local commit should exist before call');
+
+    // --- Execution ---
+    // 4. Run checkoutOrCreateBranch - should detect local branch but no remote
+    const checkoutPromise = gitService.checkoutOrCreateBranch({
+      localPath,
+      branchName: WORKING_BRANCH,
+    });
+    await t.notThrowsAsync(checkoutPromise, 'Checkout or create operation failed for local-only branch');
+
+    // --- Assertions ---
+    // 5. Verify current branch is still WORKING_BRANCH
+    const currentBranch = await gitService.getCurrentBranch({ localPath });
+    t.is(currentBranch, WORKING_BRANCH, `Current branch should still be ${WORKING_BRANCH}`);
+
+    // 6. Verify local content and commit are preserved
+    const contentAfter = await fs.readFile(path.join(localPath, testFileName), 'utf-8');
+    t.is(contentAfter, localContent, 'Local content should be preserved after call');
+    const logAfter = await git.log();
+    t.true(logAfter.latest.message.includes('local-only'), 'Local commit should be preserved after call');
+
+    // 7. Verify remote branch still doesn't exist
+    const branches = await gitService.listBranches({ localPath }); // Fetches origin
+    t.false(
+      branches.all.some(b => b.startsWith('remotes/origin/') && b.endsWith(WORKING_BRANCH)),
+      `WORKING_BRANCH should still not exist on remote origin`
+    );
+
+  } catch (err) {
+    t.fail(`Test failed for Phase 2.6: ${err}`);
+  } 
+  // No specific remote cleanup needed as we didn't push
+  // Local directory cleanup happens in test.afterEach.always
 }); 

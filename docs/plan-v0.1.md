@@ -52,9 +52,9 @@
 *   [x] Step 2.1: Test checkout of `STARTING_BRANCH`.
 *   [x] Step 2.2: Test pulling `STARTING_BRANCH`.
 *   [x] Step 2.3: Test creation of `WORKING_BRANCH` if it doesn't exist.
-*   [ ] Step 2.4: Test checkout of existing remote `WORKING_BRANCH`.
-*   [ ] Step 2.5: Test hard reset of existing local `WORKING_BRANCH` to remote state.
-*   [ ] Step 2.6: Test keeping local `WORKING_BRANCH` if remote doesn't exist.
+*   [x] Step 2.4: Test checkout of existing remote `WORKING_BRANCH`.
+*   [x] Step 2.5: Test hard reset of existing local `WORKING_BRANCH` to remote state.
+*   [x] Step 2.6: Test keeping local `WORKING_BRANCH` if remote doesn't exist.
 
 ---
 
