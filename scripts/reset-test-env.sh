@@ -12,7 +12,7 @@ docker-compose -f "$COMPOSE_FILE" down
 echo "Building and starting new test containers in detached mode..."
 docker-compose -f "$COMPOSE_FILE" up -d --build
 
-echo "Installing/updating dependencies inside test-runner container..."
-docker-compose -f "$COMPOSE_FILE" exec test-runner npm run deps:container
+echo "Running npm install inside test-runner container..."
+docker-compose -f "$COMPOSE_FILE" exec test-runner npm install
 
 echo "Test environment reset complete." 

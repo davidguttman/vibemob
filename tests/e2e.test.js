@@ -3,10 +3,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import simpleGit from 'simple-git';
+import { createProxy } from 'echoproxia';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 // import tcpPortUsed from 'tcp-port-used'; // REMOVED
 
 // Placeholder for the actual service - this import will fail initially
 import { gitService } from '../lib/index.js'; 
+import { coreService } from '../lib/index.js';
 
 // Define the starting branch
 const STARTING_BRANCH = 'main';
@@ -20,15 +24,49 @@ if (!REPO_URL) {
   throw new Error('REPO_URL environment variable not set. Run tests using \'npm test\'.');
 }
 
+// ESM equivalent for __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 let tempDir;
+let proxy = null;
+let proxyUrl = null;
+
+test.before(async () => {
+  const targetApiBase = process.env.AIDER_TARGET_API || 'https://openrouter.ai/api/v1';
+  const recordMode = process.env.ECHOPROXIA_MODE !== 'replay';
+  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
+
+  try {
+    await fs.mkdir(recordingsDir, { recursive: true });
+    proxy = await createProxy({
+      targetUrl: targetApiBase,
+      recordingsDir: recordingsDir,
+      recordMode: recordMode,
+      redactHeaders: ['authorization', 'x-api-key']
+    });
+    proxyUrl = proxy.url;
+    console.log(`Echoproxia proxy started for tests at ${proxyUrl} (Mode: ${recordMode ? 'record' : 'replay'})`);
+    process.env.AIDER_API_BASE = proxyUrl;
+  } catch (err) {
+    console.error('Failed to start Echoproxia proxy:', err);
+  }
+});
+
+test.after.always(async () => {
+  if (proxy && proxy.stop) {
+    await proxy.stop();
+    console.log('Echoproxia proxy stopped.');
+    proxy = null;
+    proxyUrl = null;
+  }
+});
 
 test.beforeEach(async () => {
-  // Create a unique temporary directory for each test run
   tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vibemob-test-'));
 });
 
 test.afterEach.always(async () => {
-  // Clean up the temporary directory
   if (tempDir) {
     await fs.rm(tempDir, { recursive: true, force: true });
   }
@@ -373,4 +411,69 @@ test('Phase 2.6: should keep local WORKING_BRANCH if remote doesn\'t exist', asy
   } 
   // No specific remote cleanup needed as we didn't push
   // Local directory cleanup happens in test.afterEach.always
+}); 
+
+// --- Phase 3 Tests ---
+
+test('Phase 3.1: should initialize the core service successfully', async t => {
+  const localPath = path.join(tempDir, 'repo-phase3.1');
+
+  // 1. Clone the repository first (required for core init)
+  await t.notThrowsAsync(
+    gitService.cloneRepo({
+      repoUrl: REPO_URL,
+      localPath,
+    }),
+    'Clone operation failed for Phase 3.1 test'
+  );
+
+  // 2. Initialize the core service (this is the function under test)
+  // It should ensure the correct branch and initialize aider (placeholder for now)
+  const initializePromise = coreService.initializeCore({ repoPath: localPath });
+
+  // Assert initialization doesn't throw
+  await t.notThrowsAsync(initializePromise, 'Core service initialization failed');
+
+  // Assert repo is on the correct branch after initialization
+  const currentBranch = await gitService.getCurrentBranch({ localPath });
+  t.is(currentBranch, WORKING_BRANCH, `Repo should be on ${WORKING_BRANCH} after core init`);
+
+  // TODO: Add assertions for aider initialization state once implemented
+}); 
+
+test('Phase 3.2: should handle incoming message via core service', async t => {
+  const localPath = path.join(tempDir, 'repo-phase3.2');
+  const testPrompt = 'Add a comment saying hello';
+  const testUserId = 'user-123';
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 3.2'
+  );
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 3.2'
+  );
+
+  // Ensure proxy is running before setting sequence
+  t.truthy(proxy, 'Echoproxia proxy should be running');
+
+  // 2. Set Echoproxia sequence for recording/replaying this interaction
+  proxy.setSequence('phase3.2-handle-message');
+
+  // 3. Send message to core service
+  const handleMessagePromise = coreService.handleIncomingMessage({
+    message: testPrompt,
+    userId: testUserId,
+  });
+
+  // Assert message handling doesn't throw (using placeholder aiderService for now)
+  await t.notThrowsAsync(handleMessagePromise, 'handleIncomingMessage failed');
+
+  // 4. Verify placeholder response (will change in 3.3)
+  const response = await handleMessagePromise;
+  t.is(response, 'Placeholder response.', 'Should receive placeholder response from mock aider');
+
+  // TODO: In future steps, assert file changes or real Aider responses.
 }); 
