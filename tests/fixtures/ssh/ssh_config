@@ -1,0 +1,5 @@
+Host git-server
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  User git
+  # Add other SSH options if needed, e.g., Port 22 

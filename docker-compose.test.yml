@@ -18,7 +18,7 @@ services:
     volumes:
       # Mount the persistent public key to authorized_keys
       - type: bind
-        source: ./tests/id_test.pub # Use persistent key in tests/
+        source: ./tests/fixtures/ssh/id_test.pub # Use persistent key in tests/fixtures/ssh/
         target: /home/git/.ssh/authorized_keys
     networks:
       - test_net
@@ -31,9 +31,18 @@ services:
     command: tail -f /dev/null
     working_dir: /app
     # Mount the project directory BUT NOT node_modules
+    # Also mount SSH key and config
     volumes:
       - .:/app # Mount the project root
       - /app/node_modules # Use an anonymous volume for node_modules inside container
+      - type: bind
+        source: ./tests/fixtures/ssh/id_test
+        target: /root/.ssh/id_rsa
+        read_only: true # Mount private key read-only
+      - type: bind
+        source: ./tests/fixtures/ssh/ssh_config
+        target: /root/.ssh/config
+        read_only: true # Mount SSH config read-only
     # Environment variables needed by the tests
     environment:
       - NODE_ENV=test

@@ -1,10 +1,13 @@
 # Dockerfile.test
 FROM node:22
 
-# Install Git (needed for simple-git) and netcat (for SSH server check)
+# Install Git (needed for simple-git), netcat (for SSH server check), and ssh client
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    openssh-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /root/.ssh \
+    && chmod 700 /root/.ssh
 
 # Create a non-root user (optional, but good practice if needed later)
 # RUN useradd -m -s /bin/bash tester

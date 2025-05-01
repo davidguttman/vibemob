@@ -47,12 +47,19 @@ The application is split into two main modules:
 
 - **Framework:** Docker Compose (`docker-compose.test.yml`)
 - **Services:**
-    - `git-server`: Provides a Git repository over SSH, resetting on each run.
-    - `test-runner`: Executes the `ava` E2E tests against the `git-server` and the application code.
+    - `git-server`: Provides a Git repository over SSH, resetting on each run. Uses the public key from `tests/fixtures/ssh/id_test.pub`.
+    - `test-runner`: Executes the `ava` E2E tests against the `git-server` and the application code. The private key (`tests/fixtures/ssh/id_test`) and a custom SSH config (`tests/fixtures/ssh/ssh_config`) are mounted into `/root/.ssh/` to facilitate SSH connections to `git-server`.
 - **Fixtures:**
     - `tests/fixtures/git-repo`: Source files for the test repository.
-    - `tests/fixtures/ssh`: SSH keys for communication between test containers.
-- **Orchestration:** Tests are run via `docker-compose run test-runner npm test` (or similar).
+    - `tests/fixtures/ssh`: Contains `id_test` (private key), `id_test.pub` (public key), and `ssh_config` (client configuration) for testing SSH connections between containers.
+- **Orchestration:**
+    - Use npm scripts to manage the test environment:
+        - `npm run test:env:build`: Builds or rebuilds the Docker images.
+        - `npm run test:env:up`: Starts the services (`git-server`, `test-runner`) in detached mode.
+        - `npm run test:env:down`: Stops and removes the containers, networks.
+        - `npm run test:env:exec -- <command>`: Executes a command inside the `test-runner` container (e.g., `npm run test:env:exec -- ls -la`). Use `npm run test:env:exec` for an interactive shell.
+        - `npm run test:env:ssh`: Opens an SSH connection from `test-runner` to `git-server` (useful for verifying connectivity).
+    - Run tests using: `npm run test:env:exec -- npm run test:container` or via the top-level `npm test` script (which should eventually use these commands).
 
 ## Project Status
 
