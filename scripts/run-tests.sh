@@ -4,11 +4,9 @@ set -e
 # Ensure we are in the project root directory
 cd "$(dirname "$0")/.."
 
-# Ensure the test environment is built and up
-echo "Building test environment images..."
-npm run test:env:build > /dev/null # Suppress verbose build output
-echo "Starting test environment containers..."
-npm run test:env:up > /dev/null   # Suppress verbose up output
+# Ensure the test environment is built (if needed) and up
+echo "Ensuring test environment is up (building if necessary)..."
+npm run test:env:up > /dev/null   # Suppress verbose output
 
 # Read the private key, encode it
 SSH_KEY_PATH="tests/fixtures/ssh/id_test"

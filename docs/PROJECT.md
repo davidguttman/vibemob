@@ -54,12 +54,11 @@ The application is split into two main modules:
     - `tests/fixtures/ssh`: Contains `id_test` (private key), `id_test.pub` (public key), and `ssh_config` (client configuration) for testing SSH connections between containers.
 - **Orchestration:**
     - Use npm scripts to manage the test environment:
-        - `npm run test:env:build`: Builds or rebuilds the Docker images.
-        - `npm run test:env:up`: Starts the services (`git-server`, `test-runner`) in detached mode.
+        - `npm run test:env:up`: Starts the services (`git-server`, `test-runner`) in detached mode. Builds images automatically if they are missing or outdated.
         - `npm run test:env:down`: Stops and removes the containers, networks.
         - `npm run test:env:exec -- <command>`: Executes a command inside the `test-runner` container (e.g., `npm run test:env:exec -- ls -la`). Use `npm run test:env:exec` for an interactive shell.
         - `npm run test:env:ssh`: Opens an SSH connection from `test-runner` to `git-server` (useful for verifying connectivity).
-    - Run tests using: `npm run test:env:exec -- npm run test:container` or via the top-level `npm test` script (which should eventually use these commands).
+    - Run tests using: The top-level `npm test` script handles environment setup and execution within the container.
 
 ## Project Status
 
