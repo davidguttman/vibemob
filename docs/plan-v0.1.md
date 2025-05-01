@@ -64,7 +64,7 @@
 
 *   [x] Step 3.1: Test initializing the `core` module (including Aider).
 *   [x] Step 3.2: Test sending a message via `core.handleIncomingMessage`.
-*   [ ] Step 3.3: Test receiving/verifying a plain text Aider response from `core`.
+*   [x] Step 3.3: Test receiving/verifying a plain text Aider response from `core`.
 
 ---
 
