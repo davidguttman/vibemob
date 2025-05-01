@@ -1,0 +1,17 @@
+{
+  "name": "vibemob",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "./scripts/run-tests.sh",
+    "test:container": "ava --serial"
+  },
+  "keywords": [],
+  "author": "David Guttman <david@davidguttman.com> (http://davidguttman.com/)",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "ava": "^6.1.3"
+  }
+}

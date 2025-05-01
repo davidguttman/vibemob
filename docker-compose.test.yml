@@ -1,0 +1,46 @@
+# docker-compose.test.yml
+# version: '3.8' # Note: version is technically obsolete but harmless
+
+services:
+  git-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.git-server
+    # Add command to run sshd in foreground debug mode
+    command: ["/usr/sbin/sshd", "-D", "-e"]
+    ports:
+      - "2222:22" # Expose SSH port to host for direct testing
+    volumes:
+      # Mount the persistent public key to authorized_keys
+      - type: bind
+        source: ./tests/id_test.pub # Use persistent key in tests/
+        target: /home/git/.ssh/authorized_keys
+        read_only: true
+    networks:
+      - test_net
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    # Keep the container running
+    command: tail -f /dev/null
+    working_dir: /app
+    # Mount the project directory BUT NOT node_modules
+    volumes:
+      - .:/app # Mount the project root
+      - /app/node_modules # Use an anonymous volume for node_modules inside container
+    # Environment variables needed by the tests
+    environment:
+      - NODE_ENV=test
+      - ECHOPROXIA_MODE=${ECHOPROXIA_MODE:-replay} # Inherit or default
+      - WORKSPACE_DIR=/app/workspace # Test workspace *inside* test-runner
+      # REPO_URL and SSH_PRIVATE_KEY_B64 will be passed via `docker compose exec`
+    depends_on:
+      - git-server
+    networks:
+      - test_net
+
+networks:
+  test_net:
+    driver: bridge
