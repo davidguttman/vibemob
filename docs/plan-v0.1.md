@@ -35,13 +35,13 @@
         *   [x] Implement *placeholder* `cloneRepo` function.
         *   [x] Configure Ava test file patterns in `package.json`.
     *   [x] Run & Verify Success: `npm test` passes (placeholder resolves).
-*   [ ] **Step 1.3: Verify Cloned Files**
-    *   [ ] Test Addition: Add `fs` assertions to `tests/e2e.test.js` to check for `README.md`, `file1.txt`, `src/index.js` after clone.
-    *   [ ] Run & Verify Failure: `npm test` fails (files not found).
-    *   [ ] Implementation:
-        *   [ ] Pass SSH key to `test-runner` (e.g., via `SSH_PRIVATE_KEY_B64` env var).
-        *   [ ] Update `gitService.cloneRepo` to use `simple-git` and the SSH key to perform a real clone.
-    *   [ ] Run & Verify Success: `npm test` passes (files are cloned and verified).
+*   [x] **Step 1.3: Verify Cloned Files**
+    *   [x] Test Addition: Add `fs` assertions to `tests/e2e.test.js` to check for `README.md`, `file1.txt`, `src/index.js` after clone.
+    *   [x] Run & Verify Failure: `npm test` fails (files not found).
+    *   [x] Implementation:
+        *   [x] Pass SSH key to `test-runner` (e.g., via `SSH_PRIVATE_KEY_B64` env var).
+        *   [x] Update `gitService.cloneRepo` to use `simple-git` and the SSH key to perform a real clone.
+    *   [x] Run & Verify Success: `npm test` passes (files are cloned and verified).
 
 ---
 
@@ -49,9 +49,9 @@
 
 **Goal:** Implement and test the Git startup workflow (branch checkout, pull, creation).
 
-*   [ ] Step 2.1: Test checkout of `STARTING_BRANCH`.
-*   [ ] Step 2.2: Test pulling `STARTING_BRANCH`.
-*   [ ] Step 2.3: Test creation of `WORKING_BRANCH` if it doesn't exist.
+*   [x] Step 2.1: Test checkout of `STARTING_BRANCH`.
+*   [x] Step 2.2: Test pulling `STARTING_BRANCH`.
+*   [x] Step 2.3: Test creation of `WORKING_BRANCH` if it doesn't exist.
 *   [ ] Step 2.4: Test checkout of existing remote `WORKING_BRANCH`.
 *   [ ] Step 2.5: Test hard reset of existing local `WORKING_BRANCH` to remote state.
 *   [ ] Step 2.6: Test keeping local `WORKING_BRANCH` if remote doesn't exist.
