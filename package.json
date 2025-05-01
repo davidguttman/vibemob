@@ -13,5 +13,13 @@
   "type": "module",
   "devDependencies": {
     "ava": "^6.1.3"
+  },
+  "dependencies": {
+    "simple-git": "^3.24.0"
+  },
+  "ava": {
+    "files": [
+      "tests/**/*.test.js"
+    ]
   }
 }
