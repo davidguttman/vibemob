@@ -65,6 +65,7 @@
 *   [x] Step 3.1: Test initializing the `core` module (including Aider).
 *   [x] Step 3.2: Test sending a message via `core.handleIncomingMessage`.
 *   [x] Step 3.3: Test receiving/verifying a plain text Aider response from `core`.
+*   [ ] Step 3.4: Test a real Aider edit on `tests/fixtures/git-repo/src/server.js` (e.g., add a PATCH endpoint for partial updates).
 
 ---
 

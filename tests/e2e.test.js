@@ -496,3 +496,67 @@ test('Phase 3.2 & 3.3: should handle message and receive response via core servi
 
   // TODO: In future steps, assert specific file changes or response content.
 }); 
+
+// --- Phase 3.4: Real Aider Edit ---
+test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t => {
+  // Use a unique directory for this test
+  const testRepoPath = path.join(tempDir, 'repo-phase3.4');
+
+  // 1. Initialize Core Service (clones repo, sets up branches)
+  const core = await coreService.init({
+    repoUrl: REPO_URL,
+    localPath: testRepoPath,
+    startingBranch: STARTING_BRANCH,
+    workingBranch: WORKING_BRANCH,
+    // Aider config (API key, etc.) is expected to be in env vars
+    // or handled internally by core/Aider client
+    aiderApiBase: proxyUrl, // Use Echoproxia
+  });
+  t.truthy(core, 'Core service should initialize');
+
+  // Set Echoproxia sequence for this specific test
+  const recordingDir = path.join(__dirname, 'fixtures', 'recordings', 'phase3.4-aider-edit');
+  await fs.mkdir(recordingDir, { recursive: true }); // Ensure dir exists
+  proxy.setSequence('phase3.4-aider-edit');
+  proxy.currentSequenceRecordingsDir = recordingDir; // Explicitly set dir for recording
+
+  // 2. Add the server file to Aider's context
+  const addResponse = await core.handleIncomingMessage(
+    {
+      userId: 'test-user-3.4',
+      channelId: 'test-channel-3.4',
+      messageId: 'msg-add-3.4',
+      content: '/add src/server.js'
+    });
+  // We expect a confirmation message, adjust based on actual Aider output if needed
+  // Use optional chaining and nullish coalescing for safety
+  t.true(addResponse?.content?.includes('Added `src/server.js`') ?? false, 'Aider should confirm adding the file');
+
+  // 3. Send the edit prompt to Aider
+  const editPrompt = 'add a PATCH endpoint to /widgets/:id that allows partial updates. for example, only updating the color.';
+  const editResponse = await core.handleIncomingMessage(
+    {
+      userId: 'test-user-3.4',
+      channelId: 'test-channel-3.4',
+      messageId: 'msg-edit-3.4',
+      content: editPrompt
+    });
+  // We expect Aider to respond, possibly with a diff or confirmation
+  t.truthy(editResponse, 'Aider should respond to the edit prompt');
+  // Check if the response indicates changes applied to server.js
+  const editApplied = editResponse?.content?.includes('Applied edit to `src/server.js`') || editResponse?.files?.some(f => f.filename === 'src/server.js');
+  t.true(editApplied ?? false, 'Aider response should indicate changes to server.js');
+
+  // 4. Verify the file content in the cloned repo
+  const serverJsPath = path.join(testRepoPath, 'src', 'server.js');
+  const serverJsContent = await fs.readFile(serverJsPath, 'utf-8');
+
+  // Basic check for the PATCH method route definition (Corrected line)
+  t.true(serverJsContent.includes('app.patch('/widgets/:id')'), 'server.js should contain the PATCH endpoint definition');
+  // Check for partial update logic (e.g., checking for existence of name/color)
+  t.true(serverJsContent.includes('if (name !== undefined)'), 'server.js should handle partial name update');
+  t.true(serverJsContent.includes('if (color !== undefined)'), 'server.js should handle partial color update');
+});
+
+// --- Phase 4 Tests ---
+// ... existing code ...

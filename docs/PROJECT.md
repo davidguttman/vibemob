@@ -59,6 +59,11 @@ The application is split into two main modules:
         - `npm run test:env:exec -- <command>`: Executes a command inside the `test-runner` container (e.g., `npm run test:env:exec -- ls -la`). Use `npm run test:env:exec` for an interactive shell.
         - `npm run test:env:ssh`: Opens an SSH connection from `test-runner` to `git-server` (useful for verifying connectivity).
     - Run tests using: The top-level `npm test` script handles environment setup and execution within the container.
+        - To run ALL tests (in replay mode): `npm test`
+        - To run tests matching a specific pattern (e.g., name includes 'Phase 3.4'): `npm test -- -m 'Phase 3.4*'`
+        - To run tests in RECORD mode: `npm run test:record`
+        - To run specific tests in RECORD mode: `npm run test:record -- -m 'Phase 3.4*'`
+        - Remember to set `ECHOPROXIA_RECORDING_DIR` if you want recordings in a specific directory when using `test:record`, e.g., `ECHOPROXIA_RECORDING_DIR=tests/fixtures/recordings/my-new-test npm run test:record -- -m 'My New Test*'`
 
 ## Project Status
 
