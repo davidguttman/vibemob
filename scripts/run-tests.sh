@@ -4,6 +4,12 @@ set -e
 # Ensure we are in the project root directory
 cd "$(dirname "$0")/.."
 
+# Ensure the test environment is built and up
+echo "Building test environment images..."
+npm run test:env:build > /dev/null # Suppress verbose build output
+echo "Starting test environment containers..."
+npm run test:env:up > /dev/null   # Suppress verbose up output
+
 # Read the private key, encode it
 SSH_KEY_PATH="tests/fixtures/ssh/id_test"
 if [ ! -f "$SSH_KEY_PATH" ]; then
@@ -16,9 +22,14 @@ SSH_PRIVATE_KEY_B64=$(base64 < "$SSH_KEY_PATH" | tr -d '\n')
 # Also pass the REPO_URL for consistency
 REPO_URL="ssh://git@git-server/home/git/repo.git"
 
-docker-compose -f docker-compose.test.yml exec \
+echo "Running tests inside container..."
+docker compose -f docker-compose.test.yml exec \
     -e SSH_PRIVATE_KEY_B64="$SSH_PRIVATE_KEY_B64" \
     -e REPO_URL="$REPO_URL" \
     -e PWD=/app \
     -w /app \
-    test-runner npm run test:container "$@" 
+    test-runner npm run test:container "$@"
+
+# Optional: Bring down the environment after tests
+# echo "Stopping test environment containers..."
+# npm run test:env:down > /dev/null 

@@ -2,7 +2,7 @@ import test from 'ava';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import tcpPortUsed from 'tcp-port-used';
+// import tcpPortUsed from 'tcp-port-used'; // REMOVED
 
 // Placeholder for the actual service - this import will fail initially
 import { gitService } from '../lib/index.js'; 
@@ -30,6 +30,7 @@ test.afterEach.always(async () => {
 test('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files', async t => {
   const localPath = path.join(tempDir, 'repo');
 
+  /* // REMOVED PORT WAITING LOGIC
   // --- Wait for git-server SSH port --- 
   const host = 'git-server'; // Service name in docker-compose
   const port = 22;
@@ -43,6 +44,7 @@ test('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files',
     return; // Stop the test if port doesn't open
   }
   // -------------------------------------
+  */
 
   // await new Promise(resolve => setTimeout(resolve, 2000)); -- REMOVED as per user instruction
 
