@@ -7,7 +7,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 # Go one level up to the project root relative to the script
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$PROJECT_ROOT")"
-PROJECT_ROOT="$(dirname "$PROJECT_ROOT")"
 
 # Check if OPENROUTER_API_KEY is set (still needed by the script, even if not used by aider in replay)
 if [ -z "${OPENROUTER_API_KEY}" ]; then

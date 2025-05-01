@@ -12,7 +12,9 @@ WORKDIR /test-app
 RUN npm install @dguttman/aider-js@latest echoproxia@latest --save-dev --no-package-lock --omit=optional
 
 # Copy the test script (relative to build context, which will be project root)
-COPY docs/reference/aider-js-test/test-script.cjs .
+# COPY docs/aider-js-test/test-script.cjs .
+COPY docs/aider-js-test/test-script.cjs .
+
 
 # Command to run the test script
 CMD ["node", "test-script.cjs"] 
