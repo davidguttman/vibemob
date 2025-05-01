@@ -20,7 +20,6 @@ services:
       - type: bind
         source: ./tests/id_test.pub # Use persistent key in tests/
         target: /home/git/.ssh/authorized_keys
-        read_only: true
     networks:
       - test_net
 

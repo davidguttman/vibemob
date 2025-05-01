@@ -2,6 +2,7 @@ import test from 'ava';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import tcpPortUsed from 'tcp-port-used';
 
 // Placeholder for the actual service - this import will fail initially
 import { gitService } from '../lib/index.js'; 
@@ -26,8 +27,24 @@ test.afterEach.always(async () => {
   }
 });
 
-test('Phase 1.2: should clone remote repository via SSH', async t => {
+test('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files', async t => {
   const localPath = path.join(tempDir, 'repo');
+
+  // --- Wait for git-server SSH port --- 
+  const host = 'git-server'; // Service name in docker-compose
+  const port = 22;
+  console.log(`Waiting for SSH port ${port} on host ${host}...`);
+  try {
+    await tcpPortUsed.waitUntilUsed(port, host, 500, 30000); // Retry every 500ms for 30s
+    console.log(`SSH port ${port} on host ${host} is active.`);
+  } catch (err) {
+    console.error(`SSH port ${port} on host ${host} did not become active:`, err);
+    t.fail(`Timeout waiting for git-server SSH port: ${err.message}`);
+    return; // Stop the test if port doesn't open
+  }
+  // -------------------------------------
+
+  // await new Promise(resolve => setTimeout(resolve, 2000)); -- REMOVED as per user instruction
 
   // This is the action we are testing. It's expected to fail initially.
   const clonePromise = gitService.cloneRepo({

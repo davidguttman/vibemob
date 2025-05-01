@@ -39,6 +39,7 @@ The application is split into two main modules:
     ```
 *   **Commit Messages:** Follow Conventional Commits format.
 *   **Function Arguments:** Use options objects for functions with more than two arguments.
+*   **Asynchronous Operations:** Do NOT use arbitrary timeouts or sleeps (`setTimeout`, `setInterval` with delays) to wait for asynchronous operations (e.g., network, service startup, file I/O). Use proper async/await, promises, event listeners, health checks, or polling with libraries designed for waiting on resources (e.g., waiting for a port to be open) instead.
 *   **React/JSX (If applicable):** Avoid ternaries; use conditional returns.
 *   **Dependencies:** Manage using `npm install <package>@latest`, do not edit `package.json` directly.
 

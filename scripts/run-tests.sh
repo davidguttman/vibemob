@@ -19,4 +19,6 @@ REPO_URL="ssh://git@git-server/home/git/repo.git"
 docker-compose -f docker-compose.test.yml exec \
     -e SSH_PRIVATE_KEY_B64="$SSH_PRIVATE_KEY_B64" \
     -e REPO_URL="$REPO_URL" \
+    -e PWD=/app \
+    -w /app \
     test-runner npm run test:container "$@" 

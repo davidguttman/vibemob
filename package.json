@@ -17,10 +17,5 @@
   },
   "dependencies": {
     "simple-git": "^3.24.0"
-  },
-  "ava": {
-    "files": [
-      "tests/**/*.test.js"
-    ]
   }
 }
