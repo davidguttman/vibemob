@@ -38,7 +38,8 @@ test.before(async () => {
   const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
 
   try {
-    await fs.mkdir(recordingsDir, { recursive: true });
+    // Ensure the host directory exists via the mount
+    await fs.mkdir(recordingsDir, { recursive: true }); // Create if needed
     proxy = await createProxy({
       targetUrl: targetApiBase,
       recordingsDir: recordingsDir,
@@ -72,7 +73,7 @@ test.afterEach.always(async () => {
   }
 });
 
-test.skip('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files', async t => {
+test('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files', async t => {
   const localPath = path.join(tempDir, 'repo');
 
   /* // REMOVED PORT WAITING LOGIC
@@ -117,7 +118,7 @@ test.skip('Phase 1.2 & 1.3: should clone remote repository via SSH and verify fi
 
 // --- Phase 2 Tests ---
 
-test.skip('Phase 2.1: should checkout the STARTING_BRANCH after cloning', async t => {
+test('Phase 2.1: should checkout the STARTING_BRANCH after cloning', async t => {
   const localPath = path.join(tempDir, 'repo-phase2');
 
   // 1. Clone the repository first
@@ -144,7 +145,7 @@ test.skip('Phase 2.1: should checkout the STARTING_BRANCH after cloning', async 
   t.is(currentBranch, STARTING_BRANCH, `Current branch should be ${STARTING_BRANCH}`);
 }); 
 
-test.skip('Phase 2.2: should pull the STARTING_BRANCH after checkout', async t => {
+test('Phase 2.2: should pull the STARTING_BRANCH after checkout', async t => {
   const localPath = path.join(tempDir, 'repo-phase2.2');
 
   // 1. Clone
@@ -173,7 +174,7 @@ test.skip('Phase 2.2: should pull the STARTING_BRANCH after checkout', async t =
   // just ensuring the pull command runs without error is sufficient for this step.
 }); 
 
-test.skip('Phase 2.3: should create WORKING_BRANCH if it doesn\'t exist', async t => {
+test('Phase 2.3: should create WORKING_BRANCH if it doesn\'t exist', async t => {
   const localPath = path.join(tempDir, 'repo-phase2.3');
 
   // 1. Clone
@@ -202,7 +203,7 @@ test.skip('Phase 2.3: should create WORKING_BRANCH if it doesn\'t exist', async 
   );
 }); 
 
-test.skip('Phase 2.4: should checkout existing remote WORKING_BRANCH', async t => {
+test('Phase 2.4: should checkout existing remote WORKING_BRANCH', async t => {
   // Use a single local path for setup, execution, and cleanup
   const localPath = path.join(tempDir, 'repo-phase2.4');
   let branchPushed = false;
@@ -277,7 +278,7 @@ test.skip('Phase 2.4: should checkout existing remote WORKING_BRANCH', async t =
   }
 }); 
 
-test.skip('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remotely and locally diverged', async t => {
+test('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remotely and locally diverged', async t => {
   const localPath = path.join(tempDir, 'repo-phase2.5');
   const testFileName = 'phase2.5.txt';
   const initialContent = 'initial remote content';
@@ -353,7 +354,7 @@ test.skip('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remote
   }
 }); 
 
-test.skip('Phase 2.6: should keep local WORKING_BRANCH if remote doesn\'t exist', async t => {
+test('Phase 2.6: should keep local WORKING_BRANCH if remote doesn\'t exist', async t => {
   const localPath = path.join(tempDir, 'repo-phase2.6');
   const testFileName = 'phase2.6.txt';
   const localContent = 'local only content';
@@ -477,6 +478,21 @@ test('Phase 3.2 & 3.3: should handle message and receive response via core servi
   t.not(result, 'Placeholder response.', 'Should receive a real response, not the placeholder');
   t.truthy(result, 'Should receive a non-empty response from Aider interaction');
   console.log('Received Aider response (truncated): ', result.substring(0, 100) + '...');
+  // Check for the specific expected plain text response
+  t.true(result.includes('Hello!'), 'Response should include \'Hello!\''); 
+
+  // 5. Verify recordings were written (check host path via mount)
+  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings'); // Use host path for verification
+  const sequenceDir = path.join(recordingsDir, 'phase3.2-handle-message');
+  try {
+      const files = await fs.readdir(sequenceDir);
+      console.log(`Files found in container recording directory (${sequenceDir}):`, files);
+      t.true(files.length > 0, 'Expected recording files to be present in container');
+      // Check for a specific file pattern if needed
+      t.true(files.some(f => f.endsWith('.json')), 'Expected at least one .json recording file');
+  } catch (err) {
+      t.fail(`Failed to read recordings directory in container (${sequenceDir}): ${err.message}`);
+  }
 
   // TODO: In future steps, assert specific file changes or response content.
 }); 

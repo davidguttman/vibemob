@@ -48,6 +48,10 @@ services:
       - NODE_ENV=test
       - WORKSPACE_DIR=/app/workspace # Test workspace *inside* test-runner
       # REPO_URL and SSH_PRIVATE_KEY_B64 will be passed via `docker compose exec`
+      # Pass OPENROUTER_API_KEY from host if set
+      - OPENROUTER_API_KEY
+      # Also pass AIDER_TARGET_API for consistency (used by test setup)
+      - AIDER_TARGET_API
     depends_on:
       - git-server
     networks:
@@ -56,3 +60,8 @@ services:
 networks:
   test_net:
     driver: bridge
+
+# Define the named volume
+# volumes:
+#   aider-recordings:
+#     driver: local
