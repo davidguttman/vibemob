@@ -661,3 +661,71 @@ test('Phase 4.1: should add a file to context using /add command', async t => {
      t.fail(`Failed to read recordings directory (${sequenceDir}): ${err.message}`);
    }
 });
+
+test('Phase 4.2: should add a directory to context using /add command', async t => {
+  const localPath = path.join(tempDir, 'repo-phase4.2');
+  const testUserId = 'user-4.2';
+  const dirToAdd = 'src';
+  const expectedFile1 = 'src/index.js';
+  const expectedFile2 = 'src/server.js';
+  const questionAboutDir = 'What are the main files in the src directory?';
+  const expectedResponseFragment1 = 'index.js';
+  const expectedResponseFragment2 = 'server.js';
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 4.2'
+  );
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 4.2'
+  );
+
+  t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.2');
+  // Set recordMode to true for recording
+  await proxy.setSequence('phase4.2-verify-add-dir', { recordMode: true }); 
+
+  // 2. Send '/add' command for the directory
+  const addCommand = `/add ${dirToAdd}`;
+  const addPromise = coreService.handleIncomingMessage({
+    message: addCommand,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(addPromise, `/add directory command failed`);
+  const addResult = await addPromise;
+  t.truthy(addResult, 'Should receive a response after /add directory command');
+  // Aider confirms adding directories like this
+  t.true(addResult.includes(`Added directory ${dirToAdd} to the chat context`), 'Response should confirm directory addition');
+
+  // 3. Send a question that requires the directory context
+  const queryPromise = coreService.handleIncomingMessage({
+    message: questionAboutDir,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(queryPromise, 'Query after /add directory failed');
+  const queryResult = await queryPromise;
+
+  // 4. Verify Aider's response indicates knowledge of the directory contents
+  t.truthy(queryResult, 'Should receive a response to the query');
+  const lowerCaseResult = queryResult.toLowerCase();
+  t.true(lowerCaseResult.includes(expectedResponseFragment1),
+    `Aider response should mention '${expectedResponseFragment1}'. Response: ${queryResult}`);
+  t.true(lowerCaseResult.includes(expectedResponseFragment2),
+    `Aider response should mention '${expectedResponseFragment2}'. Response: ${queryResult}`);
+  log('Received Aider response for Phase 4.2 query (truncated): ', queryResult.substring(0, 100) + '...');
+
+  // 5. Verify recordings were written
+  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
+  const sequenceDir = path.join(recordingsDir, 'phase4.2-verify-add-dir');
+  try {
+    const files = await fs.readdir(sequenceDir);
+    t.true(files.length > 0, 'Expected recording files for phase4.2-verify-add-dir');
+    t.true(files.some(f => f.endsWith('.json')), 'Expected at least one .json recording file for phase4.2-verify-add-dir');
+  } catch (err) {
+    // Allow failure if in replay mode and recordings don't exist yet
+    if (process.env.ECHOPROXIA_MODE !== 'replay') {
+      t.fail(`Failed to read recordings directory (${sequenceDir}): ${err.message}`);
+    }
+  }
+});

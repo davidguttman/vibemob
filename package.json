@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@dguttman/aider-js": "^1.3.0",
+    "glob": "^11.0.2",
     "simple-git": "^3.24.0"
   }
 }

@@ -24,6 +24,7 @@ echo "Running tests inside container..."
 docker compose -f docker-compose.test.yml exec \
     -e SSH_PRIVATE_KEY_B64="$SSH_PRIVATE_KEY_B64" \
     -e REPO_URL="$REPO_URL" \
+    -e DEBUG="vibemob:core*" \
     -e PWD=/app \
     -w /app \
     test-runner npm run test:container "$@"
