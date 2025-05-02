@@ -75,7 +75,7 @@
 
 *   [x] Step 4.1: Test `/add <file>`.
 *   [x] Step 4.2: Test `/add <directory>`.
-*   [ ] Step 4.3: Test `/add <path>` with `read-only`.
+*   [x] Step 4.3: Test `/add <path>` with `read-only`.
 *   [ ] Step 4.4: Test `/remove <path>`.
 *   [ ] Step 4.5: Test `/clear`.
 *   [ ] Step 4.6: Verify context changes affect Aider interaction.

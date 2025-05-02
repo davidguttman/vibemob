@@ -634,7 +634,7 @@ test('Phase 4.1: should add a file to context using /add command', async t => {
   const addResult = await addPromise;
   // Expect a confirmation message from the core service (implementation detail)
   t.truthy(addResult, 'Should receive a response after /add command');
-  t.true(addResult.includes(`Added ${fileToAdd} to context`), 'Response should confirm file addition');
+  t.true(addResult.includes(`Added ${fileToAdd} to the chat context`), 'Response should confirm file addition');
 
   // 3. Send a question that requires the added file context
   const queryPromise = coreService.handleIncomingMessage({
@@ -728,4 +728,76 @@ test('Phase 4.2: should add a directory to context using /add command', async t 
       t.fail(`Failed to read recordings directory (${sequenceDir}): ${err.message}`);
     }
   }
+});
+
+test('Phase 4.3: should prevent modification of file added as read-only', async t => {
+  const localPath = path.join(tempDir, 'repo-phase4.3');
+  const testUserId = 'user-4.3';
+  const fileToAdd = 'README.md';
+  const readmePath = path.join(localPath, fileToAdd);
+  const modifyPrompt = `Add the line "Modified by test 4.3" to the end of ${fileToAdd}`;
+  const expectedReadOnlyResponseFragment = 'read-only'; // Aider should indicate this
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 4.3'
+  );
+  const initialContent = await fs.readFile(readmePath, 'utf-8'); // Read initial content
+
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 4.3'
+  );
+
+  t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.3');
+  // Use record mode initially, then switch to replay
+  const sequenceName = 'phase4.3-verify-add-readonly';
+  await proxy.setSequence(sequenceName, { recordMode: true });
+
+  // 2. Send '/add' command (implicitly read-only for now)
+  // TODO: Update coreService to explicitly handle read-only flag if needed
+  const addCommand = `/add ${fileToAdd}`;
+  const addPromise = coreService.handleIncomingMessage({
+    message: addCommand,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(addPromise, `/add command failed`);
+  const addResult = await addPromise;
+  t.truthy(addResult, 'Should receive a response after /add command');
+  // Expect confirmation from Aider's response processing
+  t.true(addResult.includes(`Added ${fileToAdd} to the chat context`), 'Response should confirm file addition');
+
+  // 3. Send a prompt requesting modification
+  const modifyPromise = coreService.handleIncomingMessage({
+    message: modifyPrompt,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(modifyPromise, 'Modification prompt failed');
+  const modifyResult = await modifyPromise;
+
+  // 4. Verify Aider's response indicates the file is read-only (or cannot be modified)
+  t.truthy(modifyResult, 'Should receive a response to the modification prompt');
+  t.false(modifyResult.includes('<<<<<<< SEARCH'), 'Aider response should not contain a diff block for read-only file');
+  t.false(modifyResult.includes('>>>>>>> REPLACE'), 'Aider response should not contain a diff block for read-only file');
+  log('Received Aider response for Phase 4.3 query (truncated): ', modifyResult.substring(0, 100) + '...');
+
+  // 5. Verify file content has NOT changed
+  const finalContent = await fs.readFile(readmePath, 'utf-8');
+  t.is(finalContent, initialContent, `${fileToAdd} content should not have changed.`);
+
+  // 6. Verify recordings were written (crucial in record mode)
+  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
+  const sequenceDir = path.join(recordingsDir, sequenceName);
+  try {
+    const files = await fs.readdir(sequenceDir);
+    t.true(files.length > 0, `Expected recording files for ${sequenceName}`);
+    t.true(files.some(f => f.endsWith('.json')), `Expected at least one .json recording file for ${sequenceName}`);
+  } catch (err) {
+     // Fail immediately if recordings aren't written in record mode
+     t.fail(`Failed to read recordings directory (${sequenceDir}): ${err.message}`);
+  }
+
+  // Optional: Switch to replay mode for future runs once recordings are stable
+  // await proxy.setSequence(sequenceName, { recordMode: false });
 });
