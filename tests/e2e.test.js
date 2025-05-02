@@ -683,8 +683,8 @@ test('Phase 4.2: should add a directory to context using /add command', async t 
   );
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.2');
-  // Set recordMode to true for recording
-  await proxy.setSequence('phase4.2-verify-add-dir', { recordMode: true }); 
+  // Set recordMode back to false (replay mode)
+  await proxy.setSequence('phase4.2-verify-add-dir', { recordMode: false });
 
   // 2. Send '/add' command for the directory
   const addCommand = `/add ${dirToAdd}`;
