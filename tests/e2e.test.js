@@ -7,6 +7,7 @@ import { createProxy } from 'echoproxia';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { runAider } from '@dguttman/aider-js';
+import debug from 'debug';
 // import tcpPortUsed from 'tcp-port-used'; // REMOVED
 
 // Placeholder for the actual service - this import will fail initially
@@ -33,6 +34,10 @@ if (!REPO_URL) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const log = debug('vibemob:e2e');
+const logError = debug('vibemob:e2e:error');
+logError.log = console.error.bind(console); // Direct errors to stderr
+
 let tempDir;
 let proxy = null;
 let proxyUrl = null;
@@ -52,17 +57,17 @@ test.before(async () => {
       redactHeaders: ['authorization', 'x-api-key']
     });
     proxyUrl = proxy.url;
-    console.log(`Echoproxia proxy started for tests at ${proxyUrl} (Mode: ${recordMode ? 'record' : 'replay'})`);
+    log(`Echoproxia proxy started for tests at ${proxyUrl} (Mode: ${recordMode ? 'record' : 'replay'})`);
     process.env.AIDER_API_BASE = proxyUrl;
   } catch (err) {
-    console.error('Failed to start Echoproxia proxy:', err);
+    logError('Failed to start Echoproxia proxy:', err);
   }
 });
 
 test.after.always(async () => {
   if (proxy && proxy.stop) {
     await proxy.stop();
-    console.log('Echoproxia proxy stopped.');
+    log('Echoproxia proxy stopped.');
     proxy = null;
     proxyUrl = null;
   }
@@ -85,12 +90,12 @@ test('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files',
   // --- Wait for git-server SSH port --- 
   const host = 'git-server'; // Service name in docker-compose
   const port = 22;
-  console.log(`Waiting for SSH port ${port} on host ${host}...`);
+  log(`Waiting for SSH port ${port} on host ${host}...`);
   try {
     await tcpPortUsed.waitUntilUsed(port, host, 500, 30000); // Retry every 500ms for 30s
-    console.log(`SSH port ${port} on host ${host} is active.`);
+    log(`SSH port ${port} on host ${host} is active.`);
   } catch (err) {
-    console.error(`SSH port ${port} on host ${host} did not become active:`, err);
+    logError(`SSH port ${port} on host ${host} did not become active:`, err);
     t.fail(`Timeout waiting for git-server SSH port: ${err.message}`);
     return; // Stop the test if port doesn't open
   }
@@ -276,7 +281,7 @@ test('Phase 2.4: should checkout existing remote WORKING_BRANCH', async t => {
             await gitCleanup.addConfig('user.email', 'cleanup2.4@vibemob.invalid', true, 'local').catch(()=>{});
             await gitService.deleteRemoteBranch({ localPath, branchName: WORKING_BRANCH });
         } catch (cleanupErr) {
-            console.warn(`Phase 2.4: Warning during remote branch cleanup: ${cleanupErr.message}`);
+            log(`Phase 2.4: Warning during remote branch cleanup: ${cleanupErr.message}`);
         }
     }
     // Local directory cleanup happens in test.afterEach.always
@@ -352,7 +357,7 @@ test('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remotely an
          await gitCleanup.addConfig('user.email', 'cleanup2.5@vibemob.invalid', true, 'local').catch(()=>{});
          await gitService.deleteRemoteBranch({ localPath, branchName: WORKING_BRANCH });
       } catch (cleanupErr) {
-         console.warn(`Phase 2.5: Warning during remote branch cleanup: ${cleanupErr.message}`);
+         log(`Phase 2.5: Warning during remote branch cleanup: ${cleanupErr.message}`);
       }
     }
     // Local directory cleanup happens in test.afterEach.always
@@ -483,7 +488,7 @@ test('Phase 3.2 & 3.3: should handle message and receive response via core servi
   const result = await handleMessagePromise;
   t.not(result, 'Placeholder response.', 'Should receive a real response, not the placeholder');
   t.truthy(result, 'Should receive a non-empty response from Aider interaction');
-  console.log('Received Aider response (truncated): ', result.substring(0, 100) + '...');
+  log('Received Aider response (truncated): ', result.substring(0, 100) + '...');
   // Check for the specific expected plain text response
   t.true(result.includes('Hello!'), 'Response should include \'Hello!\''); 
 
@@ -492,7 +497,7 @@ test('Phase 3.2 & 3.3: should handle message and receive response via core servi
   const sequenceDir = path.join(recordingsDir, 'phase3.2-handle-message');
   try {
       const files = await fs.readdir(sequenceDir);
-      console.log(`Files found in container recording directory (${sequenceDir}):`, files);
+      log(`Files found in container recording directory (${sequenceDir}):`, files);
       t.true(files.length > 0, 'Expected recording files to be present in container');
       // Check for a specific file pattern if needed
       t.true(files.some(f => f.endsWith('.json')), 'Expected at least one .json recording file');
@@ -557,7 +562,7 @@ test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t
       const currentStat = await fs.stat(serverJsFullPath);
       currentMtime = currentStat.mtimeMs;
     } catch (statError) {
-      console.warn(`Polling: fs.stat error: ${statError.message}`);
+      log(`Polling: fs.stat error: ${statError.message}`);
     }
     attempts++;
   }
