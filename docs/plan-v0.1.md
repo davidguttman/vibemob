@@ -73,7 +73,7 @@
 
 **Goal:** Implement and test `/add`, `/remove`, `/clear` via the `core` module API.
 
-*   [ ] Step 4.1: Test `/add <file>`.
+*   [x] Step 4.1: Test `/add <file>`.
 *   [ ] Step 4.2: Test `/add <directory>`.
 *   [ ] Step 4.3: Test `/add <path>` with `read-only`.
 *   [ ] Step 4.4: Test `/remove <path>`.

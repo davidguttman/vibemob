@@ -603,4 +603,61 @@ test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t
 });
 
 // --- Phase 4: Context Management (Placeholders) ---
-// ... existing code ...
+test('Phase 4.1: should add a file to context using /add command', async t => {
+  const localPath = path.join(tempDir, 'repo-phase4.1');
+  const testUserId = 'user-4.1';
+  const fileToAdd = 'src/server.js';
+  const questionAboutFile = 'What is the purpose of src/server.js?';
+  const expectedResponseFragment = 'express.js'; // Updated: Expect Aider to mention 'express.js' (lowercase)
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 4.1'
+  );
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 4.1'
+  );
+
+  t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.1');
+  // Temporarily set recordMode to true to capture the interaction --> Revert back to false
+  await proxy.setSequence('phase4.1-verify-add', { recordMode: false }); 
+
+  // 2. Send '/add' command
+  const addCommand = `/add ${fileToAdd}`;
+  const addPromise = coreService.handleIncomingMessage({
+    message: addCommand,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(addPromise, `/add command failed`);
+  const addResult = await addPromise;
+  // Expect a confirmation message from the core service (implementation detail)
+  t.truthy(addResult, 'Should receive a response after /add command');
+  t.true(addResult.includes(`Added ${fileToAdd} to context`), 'Response should confirm file addition');
+
+  // 3. Send a question that requires the added file context
+  const queryPromise = coreService.handleIncomingMessage({
+    message: questionAboutFile,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(queryPromise, 'Query after /add failed');
+  const queryResult = await queryPromise;
+
+  // 4. Verify Aider's response indicates knowledge of the file
+  t.truthy(queryResult, 'Should receive a response to the query');
+  t.true(queryResult.toLowerCase().includes(expectedResponseFragment),
+    `Aider response should mention '${expectedResponseFragment}' after adding ${fileToAdd}. Response: ${queryResult}`);
+  log('Received Aider response for Phase 4.1 query (truncated): ', queryResult.substring(0, 100) + '...');
+
+   // 5. Verify recordings were written (optional but good practice)
+   const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
+   const sequenceDir = path.join(recordingsDir, 'phase4.1-verify-add');
+   try {
+     const files = await fs.readdir(sequenceDir);
+     t.true(files.length > 0, 'Expected recording files for phase4.1-verify-add');
+     t.true(files.some(f => f.endsWith('.json')), 'Expected at least one .json recording file for phase4.1-verify-add');
+   } catch (err) {
+     t.fail(`Failed to read recordings directory (${sequenceDir}): ${err.message}`);
+   }
+});

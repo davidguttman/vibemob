@@ -67,8 +67,8 @@ The application is split into two main modules:
 
 ## Project Status
 
-- **Current Phase:** Phase 1: Test Environment Setup & Core Git Interaction (See `docs/plan-v0.1.md`).
-- **Next Step:** Implementing Step 1.1 (Docker Compose Setup) as defined in the plan.
+- **Current Phase:** Phase 4: Context Management Commands (See `docs/plan-v0.1.md`).
+- **Next Step:** Implementing Step 4.2 (Test `/add <directory>`) as defined in the plan.
 
 ---
 
