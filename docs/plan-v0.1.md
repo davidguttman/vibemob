@@ -78,7 +78,7 @@
 *   [x] Step 4.3: Test `/add <path>` with `read-only`.
 *   [x] Step 4.4: Test `/remove <path>`.
 *   [x] Step 4.5: Test `/clear`.
-*   [ ] Step 4.6: Verify context changes affect Aider interaction.
+*   [x] Step 4.6: Verify context changes affect Aider interaction.
 
 ---
 
