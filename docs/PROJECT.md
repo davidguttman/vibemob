@@ -65,11 +65,12 @@ The application is split into two main modules:
         - To SKIP specific tests: Temporarily modify the test definition(s) in `tests/e2e.test.js` from `test(...)` to `test.skip(...)`.
         - Remember to set `ECHOPROXIA_RECORDING_DIR` if you want recordings in a specific directory when using `test:record`, e.g., `ECHOPROXIA_RECORDING_DIR=tests/fixtures/recordings/my-new-test npm run test:record`
         - **Note:** Do NOT use the `-m` flag with `npm test` or related scripts to filter tests; use `test.only` as described above.
+        - **Echoproxia Note:** Calling `proxy.setSequence(name, { recordMode: true/false })` within a test will override the global `ECHOPROXIA_MODE` set by the `npm run test:record` or `npm test` script. This can be useful to force a specific sequence to always record or always replay, effectively "locking" a known-good recording in place while still allowing other tests to record new interactions.
 
 ## Project Status
 
-- **Current Phase:** Phase 4: Context Management Commands (See `docs/plan-v0.1.md`).
-- **Next Step:** Implementing Step 4.4 (Test `/remove <path>`) as defined in the plan.
+- **Current Phase:** Phase 6: Git Push Functionality (See `docs/plan-v0.1.md`).
+- **Next Step:** Implementing Step 6.2 (Test `core.pushChanges` function) as defined in the plan.
 
 ---
 

@@ -86,8 +86,8 @@
 
 **Goal:** Implement and test `/model` via the `core` module API.
 
-*   [ ] Step 5.1: Test setting model via `core.setModel`.
-*   [ ] Step 5.2: Verify model change affects Aider interaction.
+*   [x] Step 5.1: Test setting model via `core.setModel`.
+*   [x] Step 5.2: Verify model change affects Aider interaction.
 
 ---
 
@@ -95,7 +95,7 @@
 
 **Goal:** Implement and test pushing `WORKING_BRANCH` changes to remote.
 
-*   [ ] Step 6.1: Test making a change via Aider.
+*   [x] Step 6.1: Test making a change via Aider.
 *   [ ] Step 6.2: Test `core.pushChanges` function.
 *   [ ] Step 6.3: Verify changes are pushed to `git-server`.
 

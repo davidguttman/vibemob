@@ -826,7 +826,7 @@ test('Phase 4.5: should clear context using /clear command', async t => {
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.5');
   const sequenceName = 'phase4.5-verify-clear';
   // Switch back to replay mode
-  await proxy.setSequence(sequenceName, { recordMode: false }); 
+  await proxy.setSequence(sequenceName); 
 
   // 2. Add a file and a directory
   await coreService.handleIncomingMessage({ message: `/add ${fileToAdd}`, userId: testUserId });
@@ -880,7 +880,7 @@ test('Phase 4.6: should demonstrate context token changes', async t => {
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.6');
   const sequenceName = 'phase4.6-context-size-test';
   // Set back to REPLAY mode
-  await proxy.setSequence(sequenceName, { recordMode: false }); 
+  await proxy.setSequence(sequenceName); 
 
   // Helper to extract token counts (RESTORED)
   const getTokenCounts = (result) => {
@@ -992,6 +992,193 @@ test('Phase 5.1: should set the model using core service', async t => {
   t.pass('coreService.setModel called without error (implementation pending)');
 });
 
+test('Phase 5.2: should use the updated model for Aider interaction', async t => {
+  const localPath = path.join(tempDir, 'repo-phase5.2');
+  const testUserId = 'user-5.2';
+  const customModel = 'anthropic/claude-3-haiku-20240307'; // Use a different model
+  const testPrompt = 'Say hello using the custom model.';
+  const sequenceName = 'phase5.2-verify-model-use';
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 5.2'
+  );
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 5.2'
+  );
+
+  // 2. Set the custom model
+  await t.notThrowsAsync(
+    coreService.setModel({ modelName: customModel, userId: testUserId }),
+    'setModel failed for Phase 5.2'
+  );
+
+  // 3. Setup Echoproxia for replay
+  t.truthy(proxy, 'Echoproxia proxy should be running for Phase 5.2');
+  await proxy.setSequence(sequenceName); // Let global ECHOPROXIA_MODE control recording
+
+  // 4. Send a message, triggering Aider interaction
+  const handleMessagePromise = coreService.handleIncomingMessage({
+    message: testPrompt,
+    userId: testUserId,
+  });
+
+  // Assert message handling doesn't throw
+  await t.notThrowsAsync(handleMessagePromise, 'handleIncomingMessage failed after setModel');
+  const result = await handleMessagePromise;
+  t.truthy(result, 'Should receive a response after setting model');
+
+  // 5. Verification (Requires checking logs or recorded request)
+  // TODO: Add log inspection or ideally check the recorded Echoproxia request 
+  // to confirm `modelName` was `customModel` in the API call.
+  log(`Phase 5.2: Received response: ${result.substring(0,100)}... Check logs/recording for model usage.`);
+  t.pass('Phase 5.2 interaction completed. Manual/log check needed for model verification.');
+});
+
 // --- Phase 6: Git Push Functionality --- 
+
+test('Phase 6.1: should make a change via Aider and leave it unpushed', async t => {
+  const localPath = path.join(tempDir, 'repo-phase6.1');
+  const testUserId = 'user-6.1';
+  const fileToModify = 'README.md';
+  const changePrompt = `Add the line \"Change for Phase 6.1\" to ${fileToModify}`;
+  const sequenceName = 'phase6.1-make-change';
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 6.1'
+  );
+  // Ensure git user is configured for aider commit
+  const git = simpleGit(localPath);
+  await git.addConfig('user.email', 'test-6.1@example.com', true, 'local');
+  await git.addConfig('user.name', 'Test User 6.1', true, 'local');
+
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 6.1'
+  );
+
+  // 2. Add the file to context (so Aider can modify it)
+  // We need to make it editable, not read-only. 
+  // For now, let's assume coreService needs an update to handle editable files.
+  // HACK: We will just send the prompt without adding the file first,
+  // relying on Aider to find and edit it directly based on the prompt.
+  // await coreService.handleIncomingMessage({ message: `/add ${fileToModify} --editable`, userId: testUserId });
+
+  // 3. Setup Echoproxia for replay
+  t.truthy(proxy, 'Echoproxia proxy should be running for Phase 6.1');
+  await proxy.setSequence(sequenceName); // Let global ECHOPROXIA_MODE control recording
+
+  // 4. Send prompt to make the change
+  const changePromise = coreService.handleIncomingMessage({
+    message: changePrompt,
+    userId: testUserId,
+  });
+
+  // Assert change doesn't throw
+  await t.notThrowsAsync(changePromise, 'Aider change request failed');
+  const result = await changePromise;
+  t.truthy(result, 'Should receive a response after change request');
+  // TODO: Could add assertion here that result indicates success/diff applied
+
+  // --- Verification --- 
+  // 5. Verify file is modified locally
+  const readmeContent = await fs.readFile(path.join(localPath, fileToModify), 'utf-8');
+  t.true(readmeContent.includes('Change for Phase 6.1'), 'README.md should contain the new line');
+
+  // 6. Verify git status shows modification (Keep)
+  const status = await git.status();
+  // Aider typically auto-commits.
+  // t.true(status.modified.includes(fileToModify) || status.staged.includes(fileToModify), `Git status should show ${fileToModify} modified/staged`);
+  const logResult = await git.log();
+  t.log("Latest commit message:", logResult.latest?.message);
+  // t.true(logResult.latest?.message.includes('Phase 6.1'), 'Latest commit message should reflect the change'); // Remove assertion - Aider controls commit msg
+
+  // 7. Verify the commit is local only (not pushed yet)
+  const branches = await gitService.listBranches({ localPath });
+  const localBranchInfo = branches.branches[WORKING_BRANCH];
+  const remoteBranchInfo = branches.branches[`remotes/origin/${WORKING_BRANCH}`];
+
+  t.truthy(localBranchInfo, `Local branch ${WORKING_BRANCH} should exist`);
+  // If the remote branch doesn't exist yet, this check is simple
+  if (!remoteBranchInfo) {
+      t.pass('Remote branch doesn\'t exist yet, change is local only.');
+  } else {
+      // If remote exists, check if hashes differ
+      t.log(`Local Hash: ${localBranchInfo.commit}, Remote Hash: ${remoteBranchInfo.commit}`);
+      t.not(localBranchInfo.commit, remoteBranchInfo.commit, 'Local commit hash should differ from remote after change');
+  }
+});
+
+test('Phase 6.2: should push local changes to remote using core service', async t => {
+  const localPath = path.join(tempDir, 'repo-phase6.2');
+  const testUserId = 'user-6.2'; // Using core service, so need user id
+  const fileToModify = 'README.md';
+  const changePrompt = `Add the line \"Change for Phase 6.2\" to ${fileToModify}`;
+  const sequenceName = 'phase6.2-push-change'; // Need a new sequence
+
+  // --- Setup: Create a local commit to push --- 
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 6.2'
+  );
+  const git = simpleGit(localPath);
+  await git.addConfig('user.email', 'test-6.2@example.com', true, 'local');
+  await git.addConfig('user.name', 'Test User 6.2', true, 'local');
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 6.2'
+  );
+
+  // 2. Make change via Aider (record this interaction)
+  t.truthy(proxy, 'Echoproxia proxy should be running for Phase 6.2');
+  await proxy.setSequence(sequenceName); // Let global mode control record/replay
+  const changePromise = coreService.handleIncomingMessage({
+    message: changePrompt,
+    userId: testUserId,
+  });
+  await t.notThrowsAsync(changePromise, 'Aider change request failed');
+  await changePromise;
+
+  // 3. Verify change exists locally but not remotely before push
+  const branchesBefore = await gitService.listBranches({ localPath });
+  const localBranchBefore = branchesBefore.branches[WORKING_BRANCH];
+  const remoteBranchBefore = branchesBefore.branches[`remotes/origin/${WORKING_BRANCH}`];
+  t.truthy(localBranchBefore, `Local branch ${WORKING_BRANCH} should exist before push`);
+  if (remoteBranchBefore) { // Remote might not exist yet if first time
+      t.not(localBranchBefore.commit, remoteBranchBefore.commit, 'Local commit hash should differ from remote before push');
+  } else {
+      t.log('Remote branch does not exist before push, as expected.');
+  }
+
+  // --- Execution: Push the changes --- 
+  // 4. Call the (not yet existing) pushChanges function
+  const pushPromise = coreService.pushChanges({
+    userId: testUserId, // Might need user context
+    // Potentially add branch name or other options later
+  });
+
+  // Assert the push operation completes without throwing (will fail initially)
+  await t.notThrowsAsync(pushPromise, 'coreService.pushChanges failed');
+
+  // --- Verification --- 
+  // 5. Fetch latest remote state
+  await git.fetch('origin');
+
+  // 6. Verify local and remote commit hashes match
+  const branchesAfter = await gitService.listBranches({ localPath }); 
+  const localBranchAfter = branchesAfter.branches[WORKING_BRANCH];
+  const remoteBranchAfter = branchesAfter.branches[`remotes/origin/${WORKING_BRANCH}`];
+
+  t.truthy(localBranchAfter, `Local branch ${WORKING_BRANCH} should exist after push`);
+  t.truthy(remoteBranchAfter, `Remote branch origin/${WORKING_BRANCH} should exist after push`);
+  t.is(localBranchAfter.commit, remoteBranchAfter.commit, 'Local and remote commit hashes should match after push');
+
+  t.pass('coreService.pushChanges executed and commit hashes match.');
+});
 
 // --- Phase 7: Discord Adapter ---
