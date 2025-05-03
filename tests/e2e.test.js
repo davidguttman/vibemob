@@ -474,7 +474,7 @@ test('Phase 3.2 & 3.3: should handle message and receive response via core servi
 
   // 2. Set Echoproxia sequence for recording/replaying this interaction
   // Force replay mode for this specific sequence
-  await proxy.setSequence('phase3.2-handle-message');
+  await proxy.setSequence('phase3.2-handle-message', { recordMode: false });
 
   // 3. Send message to core service
   const handleMessagePromise = coreService.handleIncomingMessage({
@@ -514,7 +514,7 @@ test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t
   await git.addConfig('user.name', 'Test User 3.4', true, 'local');
 
   t.truthy(proxy, 'Echoproxia proxy should be running');
-  proxy.setSequence('phase3.4-aider-edit');
+  proxy.setSequence('phase3.4-aider-edit', { recordMode: false });
 
   // 2. Define the edit prompt
   const editPrompt = `Add a PATCH endpoint to ${serverJsRelativePath} for /widgets/:id that allows partial updates. For example, only updating the color.`;
@@ -597,7 +597,7 @@ test('Phase 4.1: should add a file to context using /add command', async t => {
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.1');
   // Temporarily set recordMode to true to capture the interaction --> Revert back to false
-  await proxy.setSequence('phase4.1-verify-add'); 
+  await proxy.setSequence('phase4.1-verify-add', { recordMode: false }); 
 
   // 2. Send '/add' command
   const addCommand = `/add ${fileToAdd}`;
@@ -648,7 +648,7 @@ test('Phase 4.2: should add a directory to context using /add command', async t 
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.2');
   // Set recordMode back to false (replay mode)
-  await proxy.setSequence('phase4.2-verify-add-dir');
+  await proxy.setSequence('phase4.2-verify-add-dir', { recordMode: false });
 
   // 2. Send '/add' command for the directory
   const addCommand = `/add ${dirToAdd}`;
@@ -703,7 +703,7 @@ test('Phase 4.3: should prevent modification of file added as read-only', async 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.3');
   // Use record mode initially, then switch to replay
   const sequenceName = 'phase4.3-verify-add-readonly';
-  await proxy.setSequence(sequenceName);
+  await proxy.setSequence(sequenceName, { recordMode: false });
 
   // 2. Send '/add' command (implicitly read-only for now)
   // TODO: Update coreService to explicitly handle read-only flag if needed
@@ -756,7 +756,7 @@ test('Phase 4.4: should remove a file from context using /remove command', async
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.4');
   const sequenceName = 'phase4.4-verify-remove';
-  await proxy.setSequence(sequenceName);
+  await proxy.setSequence(sequenceName, { recordMode: false });
 
   // 2. Add the file first
   const addCommand = `/add ${fileToRemove}`;
@@ -826,7 +826,7 @@ test('Phase 4.5: should clear context using /clear command', async t => {
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.5');
   const sequenceName = 'phase4.5-verify-clear';
   // Switch back to replay mode
-  await proxy.setSequence(sequenceName); 
+  await proxy.setSequence(sequenceName, { recordMode: false }); 
 
   // 2. Add a file and a directory
   await coreService.handleIncomingMessage({ message: `/add ${fileToAdd}`, userId: testUserId });
@@ -880,7 +880,7 @@ test('Phase 4.6: should demonstrate context token changes', async t => {
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.6');
   const sequenceName = 'phase4.6-context-size-test';
   // Set back to REPLAY mode
-  await proxy.setSequence(sequenceName); 
+  await proxy.setSequence(sequenceName, { recordMode: false }); 
 
   // Helper to extract token counts (RESTORED)
   const getTokenCounts = (result) => {
@@ -951,3 +951,47 @@ test('Phase 4.6: should demonstrate context token changes', async t => {
 
   t.pass('Test 4.6 completed all interactions and token checks.'); 
 });
+
+// --- Phase 5: Model Configuration --- 
+
+test('Phase 5.1: should set the model using core service', async t => {
+  const localPath = path.join(tempDir, 'repo-phase5.1');
+  const testUserId = 'user-5.1';
+  const newModel = 'anthropic/claude-3-opus-20240229';
+
+  // 1. Clone & Initialize Core
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+    'Clone failed for Phase 5.1'
+  );
+  await t.notThrowsAsync(
+    coreService.initializeCore({ repoPath: localPath }),
+    'Core init failed for Phase 5.1'
+  );
+
+  // Ensure coreService has the default model initially (optional but good practice)
+  // This requires adding a way to get the current model from coreService
+  // const initialModel = await coreService.getCurrentModel({ userId: testUserId });
+  // t.is(initialModel, DEFAULT_MODEL, 'Initial model should be the default');
+
+  // 2. Call the (not yet existing) setModel function
+  const setModelPromise = coreService.setModel({
+    modelName: newModel,
+    userId: testUserId, // Assuming model is per-user or session
+  });
+
+  // Assert the setModel operation completes without throwing (will fail initially)
+  await t.notThrowsAsync(setModelPromise, 'coreService.setModel failed');
+
+  // 3. Verify the model was actually set (requires a getter)
+  // const updatedModel = await coreService.getCurrentModel({ userId: testUserId });
+  // t.is(updatedModel, newModel, `Model should be updated to ${newModel}`);
+
+  // For now, just ensure the function can be called without error.
+  // Verification of the model being *used* will happen in Step 5.2.
+  t.pass('coreService.setModel called without error (implementation pending)');
+});
+
+// --- Phase 6: Git Push Functionality --- 
+
+// --- Phase 7: Discord Adapter ---
