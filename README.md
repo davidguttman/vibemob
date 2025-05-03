@@ -89,3 +89,56 @@ Tests rely on `echoproxia` for recording and replaying LLM API interactions.
     ```
 
 See `package.json` for other test-related scripts (`test:reset`, `test:container`, `test:env:ssh`, `test:env:exec`). Note that tests *must* be run serially (`ava --serial`), which is handled by the `run-tests.sh` script. 
+
+## User Guide / Discord Interaction
+
+This guide demonstrates how to interact with the Vibemob bot in Discord.
+
+**Assumptions:**
+
+*   The bot is running and configured correctly.
+*   You are in the configured Discord guild (`DISCORD_GUILD_ID`) and have the required role (`DISCORD_ROLE_ID`), if set.
+
+**Steps:**
+
+1.  **Start an Interaction:**
+    *   Mention the bot `@<BotName>` followed by your initial request or question in any channel within the allowed guild.
+    *   **Example:** `@VibemobBot Add a new route to server.js that returns 'pong' for GET requests to /ping.`
+    *   The bot will acknowledge your request and create a new private thread for the task (e.g., `Aider task for YourUsername`).
+
+2.  **Continue in the Thread:**
+    *   All subsequent messages related to this task should be sent directly within the newly created thread.
+    *   You can provide further instructions, ask clarifying questions, or give feedback on Aider's suggestions.
+    *   **Example (in the thread):** `Actually, make the route path /healthcheck instead of /ping.`
+
+3.  **Manage Aider's Context:**
+    *   Use slash commands within the thread to control which files Aider considers when generating code or answering questions.
+    *   `/add <path>`: Adds a file or directory (relative to the Git repository root) to Aider's context. Files are typically added as read-only unless Aider needs to modify them based on your prompt.
+        *   **Example:** `/add src/server.js`
+        *   **Example:** `/add tests/`
+    *   `/remove <path>`: Removes a previously added file or directory from the context.
+        *   **Example:** `/remove src/server.js`
+    *   `/clear`: Removes *all* files and directories from the context, starting fresh.
+        *   **Example:** `/clear`
+
+4.  **Configure the Language Model:**
+    *   `/model <model_name>`: Sets the Language Model (LLM) Aider will use for processing your requests within that thread. Model names usually follow the format `provider/model-id` (e.g., `openai/gpt-4o`, `anthropic/claude-3-haiku-20240307`). See OpenRouter for available models if configured.
+        *   **Example:** `/model anthropic/claude-3-sonnet-20240229`
+
+5.  **Review Changes:**
+    *   When Aider makes changes to files, it will often respond with the textual explanation followed by attached `.diff` files.
+    *   Download and review these files to see the exact changes proposed or made to the codebase.
+
+6.  **Pushing Changes (Note):**
+    *   The core service has the capability to push the committed changes from the bot's working branch (`WORKING_BRANCH`) to the remote repository (`origin`).
+    *   Currently, there is no dedicated `/push` slash command implemented in the Discord adapter. This action might be triggered through a specific phrase in your conversation or require manual intervention by an administrator, depending on the final implementation details. Refer to the bot's operational procedures or maintainers for how to trigger a push.
+
+## TODO
+
+- [ ] Pushing changes
+- [ ] Configurable logging channel in Discord
+- [ ] Pretty display of diffs/code blocks within Discord messages
+- [ ] Improved rendering of general markdown from Aider in Discord 
+- [ ] /add + /remove autocomplete
+- [ ] /context list
+- [ ] /model autocomplete/search
