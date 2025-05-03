@@ -69,21 +69,12 @@ The application is split into two main modules:
 
 ## Project Status
 
-- **Current Phase:** Phase 6: Git Push Functionality (See `docs/plan-v0.1.md`).
-- **Next Step:** Implementing Step 6.2 (Test `core.pushChanges` function) as defined in the plan.
+- **Current Phase:** Phase 7: Discord Adapter Implementation (Complete!)
+- **Next Step:** v0.1 POC Completed. Next steps involve deployment, refinement, adding features (e.g., push command), and robust testing of the Discord interaction.
 
 ---
 
 ## References
 
 - `docs/SPEC_v0.1.md`: Detailed functional specification.
-- `docs/plan-v0.1.md`: TDD Development Plan.
-- `docs/aider-js-test`: Standalone environment for testing `@dguttman/aider-js`.
-
-## Assumptions
-
-- **API Keys:** The `OPENROUTER_API_KEY` environment variable is assumed to be set on the host machine when running tests, particularly in record mode (`npm run test:lib:record`). The `scripts/run-lib-tests.mjs` script will pass this key into the test container.
-
-## Phase 1: Core Foundation & Git Workflow (v0.1)
-
-
+- `

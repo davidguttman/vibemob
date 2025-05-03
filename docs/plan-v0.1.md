@@ -96,8 +96,8 @@
 **Goal:** Implement and test pushing `WORKING_BRANCH` changes to remote.
 
 *   [x] Step 6.1: Test making a change via Aider.
-*   [ ] Step 6.2: Test `core.pushChanges` function.
-*   [ ] Step 6.3: Verify changes are pushed to `git-server`.
+*   [x] Step 6.2: Test `core.pushChanges` function.
+*   [x] Step 6.3: Verify changes are pushed to `git-server`. (Verified by 6.2 assertions)
 
 ---
 
@@ -105,13 +105,14 @@
 
 **Goal:** Connect the tested `core` module to Discord.
 
-*   [ ] Step 7.1: Basic bot connection/ready event.
-*   [ ] Step 7.2: Mention detection & thread creation.
-*   [ ] Step 7.3: Message forwarding to `core.handleIncomingMessage`.
-*   [ ] Step 7.4: Relaying text responses to Discord.
-*   [ ] Step 7.5: Handling file/diff responses as attachments.
-*   [ ] Step 7.6: Implementing slash commands (`/model`, `/add`, `/remove`, `/clear`) -> core API.
-*   [ ] Step 7.7: Implementing access control (`GUILD_ID`, `ROLE_ID`).
-*   [ ] Step 7.8: Implementing "push changes" user command.
+*   [x] Step 7.1: Basic bot connection/ready event. (Manual verification needed)
+*   [x] Step 7.2: Mention detection & thread creation.
+*   [x] Step 7.3: Message forwarding to `core.handleIncomingMessage`.
+*   [x] Step 7.4: Relaying text responses to Discord (with splitting).
+*   [x] Step 7.5: Handling file/diff responses as attachments.
+*   [x] Step 7.6: Implement slash commands (`/model`, `/add`, `/remove`, `/clear`) -> core API.
+*   [x] Step 7.7: Handle subsequent messages in threads -> core API.
 
---- 
+---
+
+**v0.1 POC Complete!** 

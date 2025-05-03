@@ -5,7 +5,7 @@
       "path": "/chat/completions",
       "originalUrl": "/chat/completions",
       "headers": {
-        "host": "localhost:5000",
+        "host": "localhost:5001",
         "accept-encoding": "gzip, deflate",
         "connection": "keep-alive",
         "accept": "application/json",
@@ -30,7 +30,7 @@
     "response": {
       "status": 200,
       "headers": {
-        "date": "Sat, 03 May 2025 03:06:04 GMT",
+        "date": "Sat, 03 May 2025 03:12:54 GMT",
         "content-type": "application/json",
         "transfer-encoding": "chunked",
         "connection": "close",
@@ -40,11 +40,11 @@
         "x-clerk-auth-status": "signed-out",
         "vary": "Accept-Encoding",
         "server": "cloudflare",
-        "cf-ray": "939c8a4f6f7f0926-LAX",
+        "cf-ray": "939c94537a8d7e74-LAX",
         "content-encoding": "gzip"
       },
-      "bodyPlainText": "\n         \n\n         \n\n         \n\n         \n{\"id\":\"gen-1746241564-nKVAc7UAyjcvRzAqxrD0\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o\",\"object\":\"chat.completion\",\"created\":1746241564,\"choices\":[{\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"To implement a \\\"say hello\\\" feature, we likely need to create a new file or modify an existing one to include a function or script that outputs \\\"hello\\\". Since I can't edit existing files without them being added to the chat, I suggest creating a new file for this functionality. Would you like me to proceed with creating a new file for this purpose?\",\"refusal\":null,\"reasoning\":null}}],\"system_fingerprint\":\"fp_f5bdcc3276\",\"usage\":{\"prompt_tokens\":2042,\"completion_tokens\":73,\"total_tokens\":2115,\"prompt_tokens_details\":{\"cached_tokens\":1920},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}",
-      "body": "H4sIAAAAAAAAAwAAAP//4lKAAS4AAAAA///iQjABAAAA//9CYgIAAAD//0JiAgAAAP//fFJNbxMxEP0ro7lwcUuSpo3YC4rEpeKAxOeBosixZ3en9XqMPdt2qfLfkROagARcPW/exzw/IXtssKN4Nl8trxbL+eXV8iy+/bx2q0/r6dbdv/+x/v6Y38zQYMpyz54yNvguUVxfo8FBPAVsUBJFyy+7pGdLQYOyvSWn2KDrrZ47GVIgZYlo0GWySh6bk6JB1ws7Kth8fcIgXcqyLdjEMQSDLUcu/SaTLRKxwaKS0GC0yve0+ceUo6dHbGYGByrFdoTNE2YJhA3aUriojVrdSFSK1elHAa42B4oKFm6w2Al6CkFuEFqyOmYy8EAQ+I7CBJHIgwoc8oCFSA/QciCQDIN4biewEeiRi3LsQCJVOEcXRl/x7RhdvUnFF5c5KWhvFWTUNGqBG/ylfg4fODqCa3A2vlAgz3rirZIFHlh7GSsDDbClOrDeHxxqT1B7MHANZew6KnpwvUedfLeSQXsuR2c2sE7n8EXG4GGScR8dhn2OlMXVC1Th/7OlMScp9BoNZmrHYsNzs4fSOHaHh93um8EyFaWh1tpRTpn33bRp015uvXMXi9UVGhyfG01ZhqQblTuKBZvFbLmonT5/t+NgdWFQRW04QefzS/Pn/saTWg6lEjvrevJH9PzVYrb7C/PvK8c0x63Zbrf7CQAA//8DABKAXjCPAwAA"
+      "bodyPlainText": "\n         \n\n         \n{\"id\":\"gen-1746241974-MDEC3xse5FIemVZncypR\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o\",\"object\":\"chat.completion\",\"created\":1746241974,\"choices\":[{\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"To implement a \\\"say hello\\\" feature, we will likely need to create a new file to contain the function or logic for saying hello. If you have a specific file in mind where this functionality should be added, please let me know. Otherwise, I can create a new file for this purpose.\",\"refusal\":null,\"reasoning\":null}}],\"system_fingerprint\":\"fp_f5bdcc3276\",\"usage\":{\"prompt_tokens\":2042,\"completion_tokens\":61,\"total_tokens\":2103,\"prompt_tokens_details\":{\"cached_tokens\":1920},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}",
+      "body": "H4sIAAAAAAAAAwAAAP//4lKAAS4AAAAA///iQjABAAAA//90UsuKG0EM/BWhc9vxa212biEP8CEshJBDssG0uzUzinukprvH3sH438OsWW8Cm6ukKpWqdEb2WGFDMplvVuvFan6/WU2+fPz0YfmU6e7zlrrvP8QN8SsajEmP7ClhhQ+R5P0WDXbqKWCFGkksv2timawUDer+N7mCFbrWlqnTLgYqrIIGXSJbyGP1utGga5UdZax+njFoE5PuM1bSh2CwZuHc7hLZrIIV5qIRDYotfKTdf7osnp6wmhnsKGfbEFZnTBoIK7Q5cy5WyqhGpZCMSr8p8CizIylg4RGzHaClEPQRoSZb+kQGTgQnDgECHygMIEQeisL1KLAgdIKaAz0XVYplgdIS1L240QDQBEEbdlBrgmwHlua6ZQrbGgbtobXHkSlHclyPgyMdC3QsHk4tJYLScr5R2sBlgNxqHzzsCaz35A3EQDYTBCrQERxET1N4KC2lE2cysAVn5Q3do6xn+tinqJmmaDBR3WcbXgK5es3SXAuXyy+DeciFujGNhlJM/GxpHXf13d47t1xs1miwfwkiJu1i2RU9kGSsFrPVYozi5UtujfXcYNFiw+vofLY0/+J3norlkEdiZ11L/jY9v1/MLm8w/w25XXNDzS6Xyx8AAAD//wMA/RtGRDADAAA="
     }
   }
 ]
