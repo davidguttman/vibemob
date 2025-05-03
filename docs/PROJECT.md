@@ -4,7 +4,8 @@
 *It should be updated infrequently, primarily when core goals, tech, or patterns change.*
 
 See `docs/SPEC_v0.1.md` for the detailed v0.1 specification.
-See `docs/plan-v0.1.md` for the step-by-step development plan.
+See `docs/plan-v0.1.0.md` for the v0.1 development plan.
+See `docs/plan-v0.2.0.md` for the v0.2 feature development plan.
 
 ---
 
@@ -31,7 +32,7 @@ The application is split into two main modules:
 
 ## Critical Patterns & Conventions
 
-*   **Development Approach:** Strict Test-Driven Development (TDD) focusing on a single, incrementally built End-to-End (E2E) test (`tests/e2e.test.js`). See `docs/plan-v0.1.md`.
+*   **Development Approach:** Strict Test-Driven Development (TDD) focusing on a single, incrementally built End-to-End (E2E) test (`tests/e2e.test.js`). See `docs/plan-v0.1.0.md` and subsequent plan files (e.g., `docs/plan-v0.2.0.md`).
 *   **Test Execution:** All Ava tests MUST be run serially (`npx ava --serial`). The test scripts in `package.json` set `NODE_ENV=test`.
 *   **Configuration:** Centralized configuration managed in `lib/config.js`, sourcing values primarily from environment variables. When `NODE_ENV` is *not* `test`, it loads variables from the root `.env` file using `dotenv`. During tests (`NODE_ENV=test`), the `.env` file is explicitly skipped, and configuration relies solely on environment variables set by the test runner (e.g., `docker-compose.test.yml`, `scripts/run-tests.sh`).
 *   **SSH Key Handling:**
