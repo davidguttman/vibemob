@@ -27,11 +27,13 @@ The application is split into two main modules:
 - **Aider Interaction:** `@dguttman/aider-js`
 - **Testing:** `ava` (with serial execution)
 - **LLM Backend:** OpenRouter (via `aider-js`)
+- **Environment Variables:** `dotenv`
 
 ## Critical Patterns & Conventions
 
 *   **Development Approach:** Strict Test-Driven Development (TDD) focusing on a single, incrementally built End-to-End (E2E) test (`tests/e2e.test.js`). See `docs/plan-v0.1.md`.
 *   **Test Execution:** All Ava tests MUST be run serially (`npx ava --serial`).
+*   **Configuration:** Centralized configuration managed in `lib/config.js`, sourcing values from environment variables loaded via `dotenv` from the root `.env` file.
 *   **Testing Dependencies (Mocking):** Avoid `proxyquire` or `sinon`. Use the conditional export pattern for test doubles:
     ```js
     // service/index.js

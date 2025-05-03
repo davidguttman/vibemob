@@ -14,18 +14,20 @@ import debug from 'debug';
 import { gitService } from '../lib/index.js';
 // RESTORE coreService import
 import { coreService } from '../lib/index.js';
+// Import the new config
+import config from '../lib/config.js'; 
 
 // Define the starting branch
-const STARTING_BRANCH = 'main';
+const STARTING_BRANCH = config.startingBranch;
 
 // Define the working branch
-const WORKING_BRANCH = 'aider-bot-dev';
+const WORKING_BRANCH = config.workingBranch;
 
 // ADD MODEL CONSTANT
-const DEFAULT_MODEL = 'openai/gpt-4o';
+const DEFAULT_MODEL = config.defaultModel;
 
 // Get repo URL from environment variable set by run-tests.sh
-const REPO_URL = process.env.REPO_URL;
+const REPO_URL = config.repoUrl; 
 if (!REPO_URL) {
   throw new Error('REPO_URL environment variable not set. Run tests using \'npm test\'.');
 }
@@ -72,9 +74,9 @@ async function setupTestRepoAndCore(t, testName = 'default') {
 // --- End Helper ---
 
 test.before(async () => {
-  const targetApiBase = process.env.AIDER_TARGET_API || 'https://openrouter.ai/api/v1';
-  const recordMode = process.env.ECHOPROXIA_MODE !== 'replay';
-  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
+  const targetApiBase = config.aiderApiBase;
+  const recordMode = config.echoproxiaMode === 'record';
+  const recordingsDir = config.echoproxiaRecordingsDir || path.resolve(__dirname, 'fixtures', 'recordings');
 
   try {
     // Ensure the host directory exists via the mount
@@ -520,7 +522,7 @@ test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t
     prompt: editPrompt,
     modelName: DEFAULT_MODEL,
     apiBase: proxyUrl,
-    apiKey: process.env.OPENROUTER_API_KEY || 'dummy-key',
+    apiKey: config.aiderApiKey || 'dummy-key',
   };
 
   const runAiderPromise = runAider(runAiderOptions);
