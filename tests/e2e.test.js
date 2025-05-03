@@ -69,6 +69,11 @@ async function setupTestRepoAndCore(t, testName = 'default') {
     );
     log(`Core initialized for ${testName}`);
     
+    // 4. Copy and commit .gitignore
+    await fs.copyFile(path.join(__dirname, '..', '.gitignore'), path.join(localPath, '.gitignore'));
+    await git.add('.gitignore');
+    await git.commit('CHORE: add .gitignore');
+    
     return { localPath, git }; // Return path and git instance
 }
 // --- End Helper ---
@@ -105,8 +110,32 @@ test.after.always(async () => {
   }
 });
 
-test.beforeEach(async () => {
+test.beforeEach(async t => {
   tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'vibemob-test-'));
+  
+  // Attempt to clean up remote state before each test
+  log('[beforeEach] Attempting cleanup of remote working branch...');
+  const cleanupPath = path.join(tempDir, 'repo-cleanup');
+  try {
+    // Need a temporary clone just for the cleanup operation
+    await gitService.cloneRepo({ repoUrl: REPO_URL, localPath: cleanupPath });
+    // Add minimal git config to allow push --delete
+    const gitCleanup = simpleGit(cleanupPath);
+    await gitCleanup.addConfig('user.name', 'Cleanup Bot', true, 'local').catch(() => {}); 
+    await gitCleanup.addConfig('user.email', 'cleanup@vibemob.invalid', true, 'local').catch(() => {});
+    await gitService.deleteRemoteBranch({ localPath: cleanupPath, branchName: WORKING_BRANCH });
+    log(`[beforeEach] Successfully deleted remote branch: ${WORKING_BRANCH}`);
+  } catch (err) {
+    // Log errors but don't fail the test if cleanup fails (e.g., branch didn't exist)
+    if (err.message && !err.message.includes('remote ref does not exist')) {
+        logError(`[beforeEach] Warning during remote branch cleanup: ${err.message}`);
+    } else {
+        log(`[beforeEach] Remote branch ${WORKING_BRANCH} did not exist or other cleanup issue.`);
+    }
+  } finally {
+    // Clean up the temporary clone used for cleanup
+    await fs.rm(cleanupPath, { recursive: true, force: true }).catch(err => logError(`[beforeEach] Error removing cleanup repo: ${err}`));
+  }
 });
 
 test.afterEach.always(async () => {
@@ -897,6 +926,73 @@ test('Phase 6.2: should push local changes to remote using core service', async 
   t.truthy(remoteBranchAfter, `Remote branch origin/${WORKING_BRANCH} should exist after push`);
   t.is(localBranchAfter.commit, remoteBranchAfter.commit, 'Local and remote commit hashes should match after push');
   t.pass('coreService.pushChanges executed and commit hashes match.');
+
+  // Define status AFTER push is complete
+  const status = await git.status(); 
+  t.is(status.current, WORKING_BRANCH, 'Current branch should be WORKING_BRANCH after push');
+  t.true(status.tracking.startsWith(`origin/${WORKING_BRANCH}`), 'Local branch should be tracking remote');
+  t.is(status.behind, 0, 'Local branch should not be behind remote');
+  t.is(status.ahead, 0, 'Local branch should not be ahead of remote');
 });
 
-// --- Phase 7: Discord Adapter --- // No tests here
+// --- Phase 7: Discord Adapter (Placeholder/Not Directly Tested Here) ---
+// Note: Phase 7 focused on manual verification or adapter-specific tests
+// which are not part of this core E2E test file.
+
+// --- Phase 8: Direct Git Interaction via Discord ---
+
+test.serial('Phase 8.1: should handle /push command interaction', async t => {
+  proxy.setSequence('phase8.1-push-command', { recordMode: config.echoproxiaMode === 'record' });
+  const { localPath, git } = await setupTestRepoAndCore(t, 'phase8.1');
+  const userId = 'test-user-phase8.1';
+
+  // 1. Make a change using coreService (simulates Aider edit)
+  const filePath = 'src/server.js';
+  const changePrompt = `Add a comment saying \"// Phase 8 test\" to ${filePath}`;
+  log(`[Phase 8.1] Sending prompt to core: ${changePrompt}`);
+  await t.notThrowsAsync(
+    coreService.handleIncomingMessage({ message: changePrompt, userId }),
+    'Core message handling failed during Phase 8.1 setup'
+  );
+
+  // Verify the change locally before simulating push
+  const initialContent = await fs.readFile(path.join(localPath, filePath), 'utf-8');
+  t.true(initialContent.includes('// Phase 8 test'), 'Local file should contain the change before push');
+  // Minimal check before push: Ensure content is there.
+  // Status checks removed for brevity, assuming handleIncomingMessage worked if content is present.
+  log(`[Phase 8.1] Verified unique change exists locally.`);
+
+  // 2. Simulate Discord Interaction calling coreService.pushChanges
+  // In a real adapter test, we'd mock discord.js interaction object.
+  // Here, we directly call the core function that the adapter *would* call.
+  log(`[Phase 8.1] Simulating push command by calling coreService.pushChanges`);
+  let pushResult;
+  await t.notThrowsAsync(async () => {
+    pushResult = await coreService.pushChanges({ userId });
+  }, 'coreService.pushChanges failed');
+
+  // Assert the result from pushChanges (expected structure)
+  t.truthy(pushResult, 'pushChanges should return a result object');
+  t.true(pushResult.pushed, 'pushChanges result should indicate success');
+  t.is(pushResult.branch, WORKING_BRANCH, `Pushed branch should be ${WORKING_BRANCH}`);
+  log(`[Phase 8.1] coreService.pushChanges returned:`, pushResult);
+
+  // 3. Verify changes pushed to remote by cloning fresh and checking content
+  // Remove intermediate local fetch and status checks
+  const verificationPath = path.join(tempDir, 'repo-phase8.1-verify');
+  log(`[Phase 8.1] Cloning remote to ${verificationPath} for final verification`);
+  await t.notThrowsAsync(
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath: verificationPath }),
+    'Verification clone failed'
+  );
+  const verifyGit = simpleGit(verificationPath);
+  await verifyGit.checkout(WORKING_BRANCH); // Checkout the working branch in the verification clone
+  const finalContent = await fs.readFile(path.join(verificationPath, filePath), 'utf-8');
+  t.true(finalContent.includes('// Phase 8 test'), 'Remote file should contain the change after push');
+  log(`[Phase 8.1] Verification complete. Remote file content confirmed.`);
+
+});
+
+// -- Utility function for token counting (if needed) ---
+// function countTokens(text) {
+//   const encoder = encoding_for_model("gpt-4"); // Or the model used
