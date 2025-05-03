@@ -43,6 +43,7 @@ The application is split into two main modules:
     // service/index.js
     module.exports = process.env.NODE_ENV !== 'test' ? require('./real-service') : require('./fake-service')
     ```
+*   **Testing Discord Interaction:** The interaction with `discord.js` is handled via a test double located in `lib/discord-double`. An `index.js` file in this directory conditionally exports either the real `discord.js` library (for production/development) or `discord-double.js` (when `NODE_ENV=test`). The double mimics the necessary `discord.js` classes, methods, and events used by `lib/discord-adapter.js` to allow for testing without connecting to Discord's actual services.
 *   **Commit Messages:** Follow Conventional Commits format.
 *   **Function Arguments:** Use options objects for functions with more than two arguments.
 *   **Asynchronous Operations:** Do NOT use arbitrary timeouts or sleeps (`setTimeout`, `setInterval` with delays) to wait for asynchronous operations (e.g., network, service startup, file I/O). Use proper async/await, promises, event listeners, health checks, or polling with libraries designed for waiting on resources (e.g., waiting for a port to be open) instead.
