@@ -29,6 +29,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 # Copy application code
 COPY package.json .
 COPY lib ./lib
+COPY app.js .
 
 # Create a non-root user and group
 RUN addgroup --system --gid 1001 nodejs
@@ -43,4 +44,4 @@ USER nodejs
 
 # Set the default command to run the application
 # Assumes lib/discord-adapter.js is the entry point
-CMD ["node", "lib/discord-adapter.js"] 
+CMD ["node", "app.js"] 
