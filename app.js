@@ -1,7 +1,20 @@
+import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// --- Load .env file FIRST ---
+const __filename_dotenv = fileURLToPath(import.meta.url);
+const __dirname_dotenv = path.dirname(__filename_dotenv);
+const envPath = path.resolve(__dirname_dotenv, '.env');
+dotenv.config({ path: envPath });
+console.log(`Dotenv loaded from ${envPath} (exists: ${fs.existsSync(envPath)})`);
+// --- End .env load ---
+
 import debug from 'debug';
 import { coreService } from './lib/core.js';
 import { discordAdapter } from './lib/discord-adapter.js';
-import config from './lib/config.js'; // Import config for repoPath
+import config from './lib/config.js'; // Import config AFTER dotenv has run
 
 const log = debug('vibemob:app');
 const logError = debug('vibemob:app:error');
