@@ -52,6 +52,7 @@ The application is split into two main modules:
 - **Fixtures:**
     - `tests/fixtures/git-repo`: Source files for the test repository.
     - `tests/fixtures/ssh`: Contains `id_test` (private key), `id_test.pub` (public key), and `ssh_config` (client configuration) for testing SSH connections between containers.
+    - `tests/fixtures/recordings`: Stores Echoproxia recordings for mocking LLM API calls.
 - **Orchestration:**
     - Use npm scripts to manage the test environment:
         - `npm run test:env:up`: Starts the services (`git-server`, `test-runner`) in detached mode. Builds images automatically if they are missing or outdated.
@@ -65,6 +66,7 @@ The application is split into two main modules:
         - To SKIP specific tests: Temporarily modify the test definition(s) in `tests/e2e.test.js` from `test(...)` to `test.skip(...)`.
         - Remember to set `ECHOPROXIA_RECORDING_DIR` if you want recordings in a specific directory when using `test:record`, e.g., `ECHOPROXIA_RECORDING_DIR=tests/fixtures/recordings/my-new-test npm run test:record`
         - **Note:** Do NOT use the `-m` flag with `npm test` or related scripts to filter tests; use `test.only` as described above.
+        - **Dependency Note:** If you add or update dependencies using `npm install <package>`, the `test-runner` container might not automatically pick them up. You **must** run `npm run test:reset` afterwards to rebuild the test environment and incorporate the changes before running `npm test`.
         - **Echoproxia Note:** Calling `proxy.setSequence(name, { recordMode: true/false })` within a test will override the global `ECHOPROXIA_MODE` set by the `npm run test:record` or `npm test` script. This can be useful to force a specific sequence to always record or always replay, effectively "locking" a known-good recording in place while still allowing other tests to record new interactions.
 
 ## Project Status

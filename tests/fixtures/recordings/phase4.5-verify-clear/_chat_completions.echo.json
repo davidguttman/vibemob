@@ -5,7 +5,7 @@
       "path": "/chat/completions",
       "originalUrl": "/chat/completions",
       "headers": {
-        "host": "localhost:5001",
+        "host": "localhost:5000",
         "accept-encoding": "gzip, deflate",
         "connection": "keep-alive",
         "accept": "application/json",
@@ -30,7 +30,7 @@
     "response": {
       "status": 200,
       "headers": {
-        "date": "Sat, 03 May 2025 03:12:54 GMT",
+        "date": "Sat, 03 May 2025 04:56:34 GMT",
         "content-type": "application/json",
         "transfer-encoding": "chunked",
         "connection": "close",
@@ -40,11 +40,11 @@
         "x-clerk-auth-status": "signed-out",
         "vary": "Accept-Encoding",
         "server": "cloudflare",
-        "cf-ray": "939c94537a8d7e74-LAX",
+        "cf-ray": "939d2c306d6d2b5c-LAX",
         "content-encoding": "gzip"
       },
-      "bodyPlainText": "\n         \n\n         \n{\"id\":\"gen-1746241974-MDEC3xse5FIemVZncypR\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o\",\"object\":\"chat.completion\",\"created\":1746241974,\"choices\":[{\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"To implement a \\\"say hello\\\" feature, we will likely need to create a new file to contain the function or logic for saying hello. If you have a specific file in mind where this functionality should be added, please let me know. Otherwise, I can create a new file for this purpose.\",\"refusal\":null,\"reasoning\":null}}],\"system_fingerprint\":\"fp_f5bdcc3276\",\"usage\":{\"prompt_tokens\":2042,\"completion_tokens\":61,\"total_tokens\":2103,\"prompt_tokens_details\":{\"cached_tokens\":1920},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}",
-      "body": "H4sIAAAAAAAAAwAAAP//4lKAAS4AAAAA///iQjABAAAA//90UsuKG0EM/BWhc9vxa212biEP8CEshJBDssG0uzUzinukprvH3sH438OsWW8Cm6ukKpWqdEb2WGFDMplvVuvFan6/WU2+fPz0YfmU6e7zlrrvP8QN8SsajEmP7ClhhQ+R5P0WDXbqKWCFGkksv2timawUDer+N7mCFbrWlqnTLgYqrIIGXSJbyGP1utGga5UdZax+njFoE5PuM1bSh2CwZuHc7hLZrIIV5qIRDYotfKTdf7osnp6wmhnsKGfbEFZnTBoIK7Q5cy5WyqhGpZCMSr8p8CizIylg4RGzHaClEPQRoSZb+kQGTgQnDgECHygMIEQeisL1KLAgdIKaAz0XVYplgdIS1L240QDQBEEbdlBrgmwHlua6ZQrbGgbtobXHkSlHclyPgyMdC3QsHk4tJYLScr5R2sBlgNxqHzzsCaz35A3EQDYTBCrQERxET1N4KC2lE2cysAVn5Q3do6xn+tinqJmmaDBR3WcbXgK5es3SXAuXyy+DeciFujGNhlJM/GxpHXf13d47t1xs1miwfwkiJu1i2RU9kGSsFrPVYozi5UtujfXcYNFiw+vofLY0/+J3norlkEdiZ11L/jY9v1/MLm8w/w25XXNDzS6Xyx8AAAD//wMA/RtGRDADAAA="
+      "bodyPlainText": "\n         \n\n         \n\n         \n{\"id\":\"gen-1746248195-Hh3AfCWzq8uYYDRd1Huc\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o\",\"object\":\"chat.completion\",\"created\":1746248195,\"choices\":[{\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"To implement a \\\"say hello\\\" feature, we likely need to create a new file or modify an existing one to include a function or script that outputs \\\"hello\\\". Since I can't edit existing files without them being added to the chat, I suggest creating a new file for this functionality. \\n\\nPlease let me know if you want to proceed with creating a new file or if you want to add any existing files to the chat for modification.\",\"refusal\":null,\"reasoning\":null}}],\"system_fingerprint\":\"fp_f5bdcc3276\",\"usage\":{\"prompt_tokens\":2042,\"completion_tokens\":88,\"total_tokens\":2130,\"prompt_tokens_details\":{\"cached_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}",
+      "body": "H4sIAAAAAAAAAwAAAP//4lKAAS4AAAAA///iQjABAAAA//9CYgIAAAD//3SSQW8TQQyF/4rlC5dpSNK0DXur4NCeQICEKoKiyYx3d+isvcx4m4Yq/x1NQpJSlevM8/Nn+z1h8FhhQ3w2uZpdTmfzybuLs5v2/Lp+/+33r/lwd/fhs5/cDA4N9kkegqeEFX7sia9v0WAnniJWKD2xDW+bXs9mggZl9ZOcYoWutTpy0vWRNAijQZfIKnmsTh0NulaCo4zV9yeM0vRJVhkrHmI0WAcOuV0mslkYK8wqPRpkq+GBlv/5DezpEauxwY5ytg1h9YRJImGFNueQ1bIWGmElLqRfBULB7IgVLCww2w20FKMsEGqyOiQysCaI4Z7iBpjIgwrs5wELTGuoQySQBJ34UG/AMtBjyBq4AWEq8sAuDr7o64Fd2UnRZ5dCr6CtVZBB+0EzLPBv9xF8CewIbsFZfqNAPujJt7TMsA7aylAcqIMVlQ/r/Z5QW4JyBwO3kIemoax76p3qxF1LAm1DPpLZGHQzggUv+FMkmwkiKXQE9yxrCDVsZIC1ZS1d+iSurKSQvGov6WWJ9R4sb17O8gx5x7RbZnC2II3QYKJ6yDYe8rE/feBm/7Dd/jCYN1mpK+FoKPUp7C5c98v6YuWdO59eXaLB4ZCLPknX61LlnjhjNR3PpiUZh9AeP+Zzgypq40k6OR+bf+uXntSGmIuxs64lf1SPt6/YPtcfR3lWst3+AQAA//8DAEBTZuHHAwAA"
     }
   }
 ]

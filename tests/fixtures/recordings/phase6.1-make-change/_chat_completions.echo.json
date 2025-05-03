@@ -5,7 +5,7 @@
       "path": "/chat/completions",
       "originalUrl": "/chat/completions",
       "headers": {
-        "host": "localhost:5001",
+        "host": "localhost:5000",
         "accept-encoding": "gzip, deflate",
         "connection": "keep-alive",
         "accept": "application/json",
@@ -30,7 +30,7 @@
     "response": {
       "status": 200,
       "headers": {
-        "date": "Sat, 03 May 2025 03:13:35 GMT",
+        "date": "Sat, 03 May 2025 04:57:14 GMT",
         "content-type": "application/json",
         "transfer-encoding": "chunked",
         "connection": "close",
@@ -40,11 +40,11 @@
         "x-clerk-auth-status": "signed-out",
         "vary": "Accept-Encoding",
         "server": "cloudflare",
-        "cf-ray": "939c95568cf07d7d-LAX",
+        "cf-ray": "939d2d2bcd0f2f14-LAX",
         "content-encoding": "gzip"
       },
-      "bodyPlainText": "\n         \n\n         \n{\"id\":\"gen-1746242016-T6tLM08eNn6aLzwUHsZr\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o\",\"object\":\"chat.completion\",\"created\":1746242016,\"choices\":[{\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"To add the line \\\"Change for Phase 6.1\\\" to the `README.md` file, we can append it after the existing content. Here is the *SEARCH/REPLACE* block:\\n\\nREADME.md\\n```markdown\\n<<<<<<< SEARCH\\n# Test Repository\\n=======\\n# Test Repository\\nChange for Phase 6.1\\n>>>>>>> REPLACE\\n```\",\"refusal\":null,\"reasoning\":null}}],\"system_fingerprint\":\"fp_f5bdcc3276\",\"usage\":{\"prompt_tokens\":2013,\"completion_tokens\":73,\"total_tokens\":2086,\"prompt_tokens_details\":{\"cached_tokens\":1920},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}",
-      "body": "H4sIAAAAAAAAAwAAAP//4lKAAS4AAAAA///iQjABAAAA//90Ul1vGjEQ/CvW9i0y5PjokVptJUSRqESaiNKX9iow5707F9/asp2QFN1/r+ACTSW6j56Znd0d70ErEFAidXqjYdof9pNe2lmmcX6b3OAXSuX89+7bLHz3wMF5+6gVehBw55DGn4FDbRUaEGAdktTXpYudoQUOdvML8wgC8krGbm5rZzBqS8Ah9ygjKhB/HTnkldU5BhA/9mBs6bzdBBD0YAyHQpMO1cqjDJZAQIjWAQeSUT/i6j+oJoVPIBIONYYgSwSxB28NggAZgg5RUjxMYykiHSZdWiaVYrFCZjQhy2BSSSqRFdaz+0oGZGm3lwGL9khaL6bjT7fTbq3WrNAGOdshyyUx6RySYjoyWUT0RzI+6RA1lezFr8tm6JHpcESvvk7Hi8nsejG9n48n0yu2MTbfiowyOptktF6va+m3yu4oo/dtsVaZ0Ru2xBDZAp0NOlr/nNGHti5iF1ejj22xlzmOlsDBY/EQpDnl0Z5aU9k+NM1PDuE5RKwPYZTondfHixZuVbzdqDwf9EcpcHg45eC8rV1cRbtFCiD6SW9wSOL0Sc7AaMAh2ijNK+pNyv/VrxRGqU04NM5lXqE6s3vv+klzofNryXmbsyppmuYPAAAA//8DAIIdBO4vAwAA"
+      "bodyPlainText": "\n         \n\n         \n\n         \n{\"id\":\"gen-1746248235-XaCrK7I4am2UMjlRQukB\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o\",\"object\":\"chat.completion\",\"created\":1746248235,\"choices\":[{\"logprobs\":null,\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"To add the line \\\"Change for Phase 6.1\\\" to the `README.md`, we will append it to the existing content. Here is the *SEARCH/REPLACE* block:\\n\\nREADME.md\\n```markdown\\n<<<<<<< SEARCH\\n# Test Repository\\n=======\\n# Test Repository\\nChange for Phase 6.1\\n>>>>>>> REPLACE\\n```\",\"refusal\":null,\"reasoning\":null}}],\"system_fingerprint\":\"fp_f5bdcc3276\",\"usage\":{\"prompt_tokens\":2013,\"completion_tokens\":71,\"total_tokens\":2084,\"prompt_tokens_details\":{\"cached_tokens\":1280},\"completion_tokens_details\":{\"reasoning_tokens\":0}}}",
+      "body": "H4sIAAAAAAAAAwAAAP//4lKAAS4AAAAA///iQjABAAAA//9CYgIAAAD//3RSXW8aMRD8K9b2LTKErwCy2kqUIiVqo6Q0lSr1KjDn5c7Bt2vZJiRC/PcKLtBUovvomdmd3fEWrAEFBVKjPej1O71hp3vV+KnH4cvgpqerzo/bRzf9tl59Agk+8JM1GEDBnUca3YCEig06UMAeSdvLwqdGj0ECLx4xT6AgL3Vq5lx5h8kygYQ8oE5oQP2dKCEv2eYYQf3aguPCB15EULR2TsLSko3lLKCOTKAgJvYggXSyTzj7D2rJ4DOoloQKY9QFgtpCYIegQMdoY9KU9m6YEtLe6QMLbYxIJQpnCUUG41JTgWLJQdyXOqLoN9sZiMQH0nw6GX2+nTQrM5dig2JjnRPaeyQjbDqy8NnGZKkQr4Oa4hoDChsP6MX3yWg6vr6cTu6/jsaTC7FwnK9URhmdumc0n88rHVaGN5TR+7pErczonXjAmMQUPUebOLxk9KGus9jZnehjXeLVx2EkSAi4XEftjkHUN7ZU1A+73W8J8SUmrPYpFBh8sIdTLv1sebUwed7tDPogYX0MwAeufJolXiFFUJ1Wu7uP4Pg7TsCgLSFx0u4NddiT/+pnBpO2Lu4b5zov0ZzY7c6wtTvT+a3ktM1J1drtdn8AAAD//wMASV8ToDMDAAA="
     }
   }
 ]

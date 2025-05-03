@@ -5,7 +5,7 @@
       "path": "/chat/completions",
       "originalUrl": "/chat/completions",
       "headers": {
-        "host": "localhost:5001",
+        "host": "localhost:5000",
         "accept-encoding": "gzip, deflate",
         "connection": "keep-alive",
         "accept": "application/json",
@@ -30,7 +30,7 @@
     "response": {
       "status": 400,
       "headers": {
-        "date": "Sat, 03 May 2025 03:13:28 GMT",
+        "date": "Sat, 03 May 2025 04:57:07 GMT",
         "content-type": "application/json",
         "content-length": "137",
         "connection": "close",
@@ -40,7 +40,7 @@
         "x-clerk-auth-status": "signed-out",
         "vary": "Accept-Encoding",
         "server": "cloudflare",
-        "cf-ray": "939c95289d0a19db-LAX"
+        "cf-ray": "939d2cff0e3328f3-LAX"
       },
       "bodyPlainText": "{\"error\":{\"message\":\"anthropic/claude-3-haiku-20240307 is not a valid model ID\",\"code\":400},\"user_id\":\"user_2vYC2qb7VQT6pJScAVQ6VFNpcEO\"}",
       "body": "eyJlcnJvciI6eyJtZXNzYWdlIjoiYW50aHJvcGljL2NsYXVkZS0zLWhhaWt1LTIwMjQwMzA3IGlzIG5vdCBhIHZhbGlkIG1vZGVsIElEIiwiY29kZSI6NDAwfSwidXNlcl9pZCI6InVzZXJfMnZZQzJxYjdWUVQ2cEpTY0FWUTZWRk5wY0VPIn0="
