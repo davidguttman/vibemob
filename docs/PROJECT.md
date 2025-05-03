@@ -32,8 +32,11 @@ The application is split into two main modules:
 ## Critical Patterns & Conventions
 
 *   **Development Approach:** Strict Test-Driven Development (TDD) focusing on a single, incrementally built End-to-End (E2E) test (`tests/e2e.test.js`). See `docs/plan-v0.1.md`.
-*   **Test Execution:** All Ava tests MUST be run serially (`npx ava --serial`).
-*   **Configuration:** Centralized configuration managed in `lib/config.js`, sourcing values from environment variables loaded via `dotenv` from the root `.env` file.
+*   **Test Execution:** All Ava tests MUST be run serially (`npx ava --serial`). The test scripts in `package.json` set `NODE_ENV=test`.
+*   **Configuration:** Centralized configuration managed in `lib/config.js`, sourcing values primarily from environment variables. When `NODE_ENV` is *not* `test`, it loads variables from the root `.env` file using `dotenv`. During tests (`NODE_ENV=test`), the `.env` file is explicitly skipped, and configuration relies solely on environment variables set by the test runner (e.g., `docker-compose.test.yml`, `scripts/run-tests.sh`).
+*   **SSH Key Handling:**
+    *   **Testing:** The test environment (`docker-compose.test.yml`) mounts the test SSH key (`tests/fixtures/ssh/id_test`) and config (`tests/fixtures/ssh/ssh_config`) into standard locations (`/root/.ssh/`) within the `test-runner` container. `simple-git` picks these up automatically.
+    *   **Deployment:** For non-test environments, the SSH private key **must** be provided as a base64 encoded string via the `SSH_PRIVATE_KEY_B64` environment variable. `lib/config.js` reads this variable. `lib/git-service.js` then decodes the key, writes it to a temporary file (with `600` permissions) in the OS temporary directory (e.g., `/tmp/`), and configures `simple-git` (via `GIT_SSH_COMMAND`) to use this temporary key file for all remote Git operations. The temporary file is cleaned up by the OS.
 *   **Testing Dependencies (Mocking):** Avoid `proxyquire` or `sinon`. Use the conditional export pattern for test doubles:
     ```js
     // service/index.js
@@ -45,40 +48,12 @@ The application is split into two main modules:
 *   **React/JSX (If applicable):** Avoid ternaries; use conditional returns.
 *   **Dependencies:** Manage using `npm install <package>@latest`, do not edit `package.json` directly.
 
+## Deployment
+
+- **Dockerfile:** A multi-stage `Dockerfile` is provided for building a production-ready container image. It installs only production dependencies, creates a non-root user, and copies only the necessary source files (`lib`, `package.json`).
+- **Environment Variables:** Production deployments require setting the environment variables listed in `.env.example`. See the SSH Key Handling section below for specifics on `SSH_PRIVATE_KEY_B64`.
+- **Local Testing:** To test the production build locally before deployment, create a `.env` file in the project root with production variables, then run `npm run start:prod:local`. This uses `docker-compose.prod-local.yml` to build and run the container.
+
 ## Testing Environment
 
-- **Framework:** Docker Compose (`docker-compose.test.yml`)
-- **Services:**
-    - `git-server`: Provides a Git repository over SSH, resetting on each run. Uses the public key from `tests/fixtures/ssh/id_test.pub`.
-    - `test-runner`: Executes the `ava` E2E tests against the `git-server` and the application code. The private key (`tests/fixtures/ssh/id_test`) and a custom SSH config (`tests/fixtures/ssh/ssh_config`) are mounted into `/root/.ssh/` to facilitate SSH connections to `git-server`.
-- **Fixtures:**
-    - `tests/fixtures/git-repo`: Source files for the test repository.
-    - `tests/fixtures/ssh`: Contains `id_test` (private key), `id_test.pub` (public key), and `ssh_config` (client configuration) for testing SSH connections between containers.
-    - `tests/fixtures/recordings`: Stores Echoproxia recordings for mocking LLM API calls.
-- **Orchestration:**
-    - Use npm scripts to manage the test environment:
-        - `npm run test:env:up`: Starts the services (`git-server`, `test-runner`) in detached mode. Builds images automatically if they are missing or outdated.
-        - `npm run test:env:down`: Stops and removes the containers, networks.
-        - `npm run test:env:exec -- <command>`: Executes a command inside the `test-runner` container (e.g., `npm run test:env:exec -- ls -la`). Use `npm run test:env:exec` for an interactive shell.
-        - `npm run test:env:ssh`: Opens an SSH connection from `test-runner` to `git-server` (useful for verifying connectivity).
-    - Run tests using: The top-level `npm test` script handles environment setup and execution within the container.
-        - To run ALL tests (in replay mode): `npm test`
-        - To run ALL tests in RECORD mode: `npm run test:record`
-        - To run ONLY specific tests: Temporarily modify the test definition(s) in `tests/e2e.test.js` from `test(...)` to `test.only(...)`. Remember to revert this change before committing.
-        - To SKIP specific tests: Temporarily modify the test definition(s) in `tests/e2e.test.js` from `test(...)` to `test.skip(...)`.
-        - Remember to set `ECHOPROXIA_RECORDING_DIR` if you want recordings in a specific directory when using `test:record`, e.g., `ECHOPROXIA_RECORDING_DIR=tests/fixtures/recordings/my-new-test npm run test:record`
-        - **Note:** Do NOT use the `-m` flag with `npm test` or related scripts to filter tests; use `test.only` as described above.
-        - **Dependency Note:** If you add or update dependencies using `npm install <package>`, the `test-runner` container might not automatically pick them up. You **must** run `npm run test:reset` afterwards to rebuild the test environment and incorporate the changes before running `npm test`.
-        - **Echoproxia Note:** Calling `proxy.setSequence(name, { recordMode: true/false })` within a test will override the global `ECHOPROXIA_MODE` set by the `npm run test:record` or `npm test` script. This can be useful to force a specific sequence to always record or always replay, effectively "locking" a known-good recording in place while still allowing other tests to record new interactions.
-
-## Project Status
-
-- **Current Phase:** Phase 7: Discord Adapter Implementation (Complete!)
-- **Next Step:** v0.1 POC Completed. Next steps involve deployment, refinement, adding features (e.g., push command), and robust testing of the Discord interaction.
-
----
-
-## References
-
-- `docs/SPEC_v0.1.md`: Detailed functional specification.
-- `
+- **Framework:** Docker Compose (`

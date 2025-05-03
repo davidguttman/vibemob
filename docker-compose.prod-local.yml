@@ -1,0 +1,15 @@
+# docker-compose.prod-local.yml
+# Use this file to build and run the production Docker image locally for testing.
+# Requires a .env file in the project root with production variables.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile # Use the production Dockerfile
+    env_file:
+      - .env # Load variables from .env file in the current directory
+    # Optional: Add restart policy if desired for local testing stability
+    # restart: unless-stopped 
+    # Optional: Add a container name for easier management
+    # container_name: vibemob-local-prod 
