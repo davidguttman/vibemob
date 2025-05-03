@@ -8,7 +8,7 @@
     "test:record": "cross-env ECHOPROXIA_MODE=record ./scripts/run-tests.sh",
     "test:replay": "cross-env ECHOPROXIA_MODE=replay ./scripts/run-tests.sh",
     "test:reset": "./scripts/reset-test-env.sh",
-    "test:container": "ava --serial 'tests/**/*.test.js'",
+    "test:container": "ava --serial 'tests/**/*.test.js' --timeout 100000",
     "test:env:up": "docker compose -f docker-compose.test.yml up -d --build",
     "test:env:down": "docker compose -f docker-compose.test.yml down",
     "test:env:ssh": "docker compose -f docker-compose.test.yml exec test-runner ssh git-server",
@@ -22,10 +22,10 @@
     "ava": "^6.1.3",
     "cross-env": "^7.0.3",
     "debug": "^4.4.0",
-    "echoproxia": "^1.4.0"
+    "echoproxia": "^1.4.2"
   },
   "dependencies": {
-    "@dguttman/aider-js": "^1.3.0",
+    "@dguttman/aider-js": "^1.4.0",
     "glob": "^11.0.2",
     "simple-git": "^3.24.0"
   }
