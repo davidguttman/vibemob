@@ -42,6 +42,35 @@ let tempDir;
 let proxy = null;
 let proxyUrl = null;
 
+// --- Helper Function for Test Setup ---
+async function setupTestRepoAndCore(t, testName = 'default') {
+    const localPath = path.join(tempDir, `repo-${testName}`);
+    log(`Setting up test repo for ${testName} at ${localPath}`);
+    
+    // 1. Clone
+    await t.notThrowsAsync(
+        gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
+        `Clone failed for ${testName}`
+    );
+    
+    // 2. Configure Git User
+    const git = simpleGit(localPath);
+    // Use unique emails to potentially help debugging specific tests
+    await git.addConfig('user.email', `test-${testName}@vibemob.invalid`, true, 'local'); 
+    await git.addConfig('user.name', `Test User ${testName}`, true, 'local');
+    log(`Git user configured for ${testName}`);
+
+    // 3. Initialize Core
+    await t.notThrowsAsync(
+        coreService.initializeCore({ repoPath: localPath }),
+        `Core init failed for ${testName}`
+    );
+    log(`Core initialized for ${testName}`);
+    
+    return { localPath, git }; // Return path and git instance
+}
+// --- End Helper ---
+
 test.before(async () => {
   const targetApiBase = process.env.AIDER_TARGET_API || 'https://openrouter.ai/api/v1';
   const recordMode = process.env.ECHOPROXIA_MODE !== 'replay';
@@ -215,29 +244,26 @@ test('Phase 2.3: should create WORKING_BRANCH if it doesn\'t exist', async t => 
 }); 
 
 test('Phase 2.4: should checkout existing remote WORKING_BRANCH', async t => {
-  // Use a single local path for setup, execution, and cleanup
   const localPath = path.join(tempDir, 'repo-phase2.4');
   let branchPushed = false;
 
   try {
-    // --- Setup ---
+    // --- Setup: Create and push WORKING_BRANCH remotely --- 
     // 1. Clone repository
     await gitService.cloneRepo({ repoUrl: REPO_URL, localPath });
     const git = simpleGit(localPath);
-
     // 2. Create branch locally
     await git.checkoutLocalBranch(WORKING_BRANCH);
-
     // 3. Make a commit (needed to push the branch)
     await fs.writeFile(path.join(localPath, 'phase2.4.txt'), 'test');
     await git.add('.');
     await git.addConfig('user.name', 'Test Bot 2.4', true, 'local');
     await git.addConfig('user.email', 'test2.4@vibemob.invalid', true, 'local');
     await git.commit('feat: add phase 2.4 test file');
-
-    // 4. Push the branch
+    // 4. Push the branch to remote
     await gitService.pushBranch({ localPath, branchName: WORKING_BRANCH });
     branchPushed = true;
+    // --- End Setup ---
 
     // --- Execution --- 
     // 5. Simulate a fresh start: Switch back to main and delete local WORKING_BRANCH
@@ -297,11 +323,10 @@ test('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remotely an
   let branchPushed = false;
 
   try {
-    // --- Setup ---
+    // --- Setup: Create remote branch, then make local diverging commit --- 
     // 1. Clone repository
     await gitService.cloneRepo({ repoUrl: REPO_URL, localPath });
     const git = simpleGit(localPath);
-
     // 2. Create and push the initial state of WORKING_BRANCH
     await git.checkoutLocalBranch(WORKING_BRANCH);
     await fs.writeFile(path.join(localPath, testFileName), initialContent);
@@ -311,14 +336,13 @@ test('Phase 2.5: should hard reset local WORKING_BRANCH if it exists remotely an
     await git.commit('feat: add initial phase 2.5 test file');
     await gitService.pushBranch({ localPath, branchName: WORKING_BRANCH });
     branchPushed = true;
-
-    // 3. Make a local diverging commit
+    // 3. Make a local diverging commit (do not push)
     await fs.writeFile(path.join(localPath, testFileName), localChangeContent);
     await git.add('.');
-    // Use different user config for the local commit for clarity if needed
     await git.addConfig('user.name', 'Test Bot 2.5 Local', true, 'local'); 
     await git.addConfig('user.email', 'test2.5_local@vibemob.invalid', true, 'local');
     await git.commit('chore: local divergent modification');
+    // --- End Setup ---
 
     // Verify local change exists before reset
     const contentBeforeReset = await fs.readFile(path.join(localPath, testFileName), 'utf-8');
@@ -371,20 +395,19 @@ test('Phase 2.6: should keep local WORKING_BRANCH if remote doesn\'t exist', asy
   const localContent = 'local only content';
 
   try {
-    // --- Setup ---
+    // --- Setup: Create local branch and commit, do not push --- 
     // 1. Clone repository
     await gitService.cloneRepo({ repoUrl: REPO_URL, localPath });
     const git = simpleGit(localPath);
-
-    // 2. Create WORKING_BRANCH locally ONLY (do not push)
+    // 2. Create WORKING_BRANCH locally ONLY
     await git.checkoutLocalBranch(WORKING_BRANCH);
-
     // 3. Make a local commit
     await fs.writeFile(path.join(localPath, testFileName), localContent);
     await git.add('.');
     await git.addConfig('user.name', 'Test Bot 2.6', true, 'local');
     await git.addConfig('user.email', 'test2.6@vibemob.invalid', true, 'local');
     await git.commit('feat: add local-only phase 2.6 test file');
+    // --- End Setup ---
 
     // Verify local state before the call
     const contentBefore = await fs.readFile(path.join(localPath, testFileName), 'utf-8');
@@ -428,90 +451,57 @@ test('Phase 2.6: should keep local WORKING_BRANCH if remote doesn\'t exist', asy
 // --- Phase 3 Tests ---
 
 test('Phase 3.1: should initialize the core service successfully', async t => {
+  // This test specifically tests initializeCore, so call it directly
   const localPath = path.join(tempDir, 'repo-phase3.1');
-
-  // 1. Clone the repository first (required for core init)
   await t.notThrowsAsync(
-    gitService.cloneRepo({
-      repoUrl: REPO_URL,
-      localPath,
-    }),
+    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
     'Clone operation failed for Phase 3.1 test'
   );
-
-  // 2. Initialize the core service (this is the function under test)
-  // It should ensure the correct branch and initialize aider (placeholder for now)
   const initializePromise = coreService.initializeCore({ repoPath: localPath });
-
-  // Assert initialization doesn't throw
   await t.notThrowsAsync(initializePromise, 'Core service initialization failed');
-
-  // Assert repo is on the correct branch after initialization
   const currentBranch = await gitService.getCurrentBranch({ localPath });
   t.is(currentBranch, WORKING_BRANCH, `Repo should be on ${WORKING_BRANCH} after core init`);
-
-  // TODO: Add assertions for aider initialization state once implemented
+  // Removed TODO here
 }); 
 
 // Test 3.2 & 3.3 merged: Send message and verify non-placeholder response
 test('Phase 3.2 & 3.3: should handle message and receive response via core service', async t => {
-  const localPath = path.join(tempDir, 'repo-phase3.2');
-  const testPrompt = 'Just say hello.'; // Simple prompt for basic interaction
+  const { localPath } = await setupTestRepoAndCore(t, '3.2'); // Use helper
+  const testPrompt = 'Just say hello.'; 
   const testUserId = 'user-123';
 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 3.2'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 3.2'
-  );
-
-  // Ensure proxy is running before setting sequence
   t.truthy(proxy, 'Echoproxia proxy should be running');
-
-  // 2. Set Echoproxia sequence for recording/replaying this interaction
-  // Force replay mode for this specific sequence
   await proxy.setSequence('phase3.2-handle-message', { recordMode: false });
 
-  // 3. Send message to core service
   const handleMessagePromise = coreService.handleIncomingMessage({
     message: testPrompt,
     userId: testUserId,
   });
-
-  // Assert message handling doesn't throw (now using real aiderService call)
   await t.notThrowsAsync(handleMessagePromise, 'handleIncomingMessage failed');
 
-  // 4. Verify response is NOT the placeholder (Step 3.3 verification)
   const result = await handleMessagePromise;
   t.not(result, 'Placeholder response.', 'Should receive a real response, not the placeholder');
   t.truthy(result, 'Should receive a non-empty response from Aider interaction');
   log('Received Aider response (truncated): ', result.substring(0, 100) + '...');
-  // Check for the specific expected plain text response
   t.true(result.includes('Hello!'), 'Response should include \'Hello!\''); 
 }); 
 
 // --- Phase 3.4: Real Aider Edit (Direct Call on Main Branch) ---
 test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t => {
-  t.timeout(60000);
-
-  const localPath = path.join(tempDir, 'repo-phase3.4');
+  t.timeout(60000); // Keep timeout for external call
   const serverJsRelativePath = 'src/server.js';
-  const serverJsFullPath = path.join(localPath, serverJsRelativePath);
-
-  // 1. Clone Repo
+  
+  // Setup repo, but don't initialize core (runAider is called directly)
+  const localPath = path.join(tempDir, 'repo-phase3.4');
   await t.notThrowsAsync(
     gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
     'Clone failed for Phase 3.4'
   );
-
-  // Configure git user
   const git = simpleGit(localPath);
   await git.addConfig('user.email', 'test-3.4@example.com', true, 'local');
   await git.addConfig('user.name', 'Test User 3.4', true, 'local');
+  
+  const serverJsFullPath = path.join(localPath, serverJsRelativePath);
 
   t.truthy(proxy, 'Echoproxia proxy should be running');
   proxy.setSequence('phase3.4-aider-edit', { recordMode: false });
@@ -577,49 +567,26 @@ test('Phase 3.4: should use Aider to add a PATCH endpoint to server.js', async t
   t.true(status.modified.includes(serverJsRelativePath), `${serverJsRelativePath} should be marked as modified in git status`);
 });
 
-// --- Phase 4: Context Management (Placeholders) ---
+// --- Phase 4: Context Management ---
 test('Phase 4.1: should add a file to context using /add command', async t => {
-  const localPath = path.join(tempDir, 'repo-phase4.1');
+  const { localPath } = await setupTestRepoAndCore(t, '4.1'); // Use helper
   const testUserId = 'user-4.1';
   const fileToAdd = 'src/server.js';
   const questionAboutFile = 'What is the purpose of src/server.js?';
-  const expectedResponseFragment = 'express'; // Updated: Expect Aider to mention 'express.js' (lowercase)
-
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 4.1'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 4.1'
-  );
+  const expectedResponseFragment = 'express'; 
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.1');
-  // Temporarily set recordMode to true to capture the interaction --> Revert back to false
   await proxy.setSequence('phase4.1-verify-add', { recordMode: false }); 
 
-  // 2. Send '/add' command
   const addCommand = `/add ${fileToAdd}`;
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
-    userId: testUserId,
-  });
+  const addPromise = coreService.handleIncomingMessage({ message: addCommand, userId: testUserId });
   await t.notThrowsAsync(addPromise, `/add command failed`);
   const addResult = await addPromise;
-  // Expect a confirmation message from the core service (implementation detail)
-  t.truthy(addResult, 'Should receive a response after /add command');
   t.true(addResult.includes(`Added ${fileToAdd} to the chat context`), 'Response should confirm file addition');
 
-  // 3. Send a question that requires the added file context
-  const queryPromise = coreService.handleIncomingMessage({
-    message: questionAboutFile,
-    userId: testUserId,
-  });
+  const queryPromise = coreService.handleIncomingMessage({ message: questionAboutFile, userId: testUserId });
   await t.notThrowsAsync(queryPromise, 'Query after /add failed');
   const queryResult = await queryPromise;
-
-  // 4. Verify Aider's response indicates knowledge of the file
   t.truthy(queryResult, 'Should receive a response to the query');
   t.true(queryResult.toLowerCase().includes(expectedResponseFragment),
     `Aider response should mention '${expectedResponseFragment}' after adding ${fileToAdd}. Response: ${queryResult}`);
@@ -627,262 +594,143 @@ test('Phase 4.1: should add a file to context using /add command', async t => {
 });
 
 test('Phase 4.2: should add a directory to context using /add command', async t => {
-  const localPath = path.join(tempDir, 'repo-phase4.2');
+  const { localPath } = await setupTestRepoAndCore(t, '4.2'); // Use helper
   const testUserId = 'user-4.2';
   const dirToAdd = 'src';
-  const expectedFile1 = 'src/index.js';
-  const expectedFile2 = 'src/server.js';
   const questionAboutDir = 'What are the main files in the src directory?';
   const expectedResponseFragment1 = 'index.js';
   const expectedResponseFragment2 = 'server.js';
 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 4.2'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 4.2'
-  );
-
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.2');
-  // Set recordMode back to false (replay mode)
   await proxy.setSequence('phase4.2-verify-add-dir', { recordMode: false });
 
-  // 2. Send '/add' command for the directory
   const addCommand = `/add ${dirToAdd}`;
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
-    userId: testUserId,
-  });
+  const addPromise = coreService.handleIncomingMessage({ message: addCommand, userId: testUserId });
   await t.notThrowsAsync(addPromise, `/add directory command failed`);
   const addResult = await addPromise;
-  t.truthy(addResult, 'Should receive a response after /add directory command');
-  // Aider confirms adding directories like this
   t.true(addResult.includes(`Added directory ${dirToAdd} to the chat context`), 'Response should confirm directory addition');
 
-  // 3. Send a question that requires the directory context
-  const queryPromise = coreService.handleIncomingMessage({
-    message: questionAboutDir,
-    userId: testUserId,
-  });
+  const queryPromise = coreService.handleIncomingMessage({ message: questionAboutDir, userId: testUserId });
   await t.notThrowsAsync(queryPromise, 'Query after /add directory failed');
   const queryResult = await queryPromise;
-
-  // 4. Verify Aider's response indicates knowledge of the directory contents
   t.truthy(queryResult, 'Should receive a response to the query');
   const lowerCaseResult = queryResult.toLowerCase();
-  t.true(lowerCaseResult.includes(expectedResponseFragment1),
-    `Aider response should mention '${expectedResponseFragment1}'. Response: ${queryResult}`);
-  t.true(lowerCaseResult.includes(expectedResponseFragment2),
-    `Aider response should mention '${expectedResponseFragment2}'. Response: ${queryResult}`);
+  t.true(lowerCaseResult.includes(expectedResponseFragment1), `Aider response should mention '${expectedResponseFragment1}'. Response: ${queryResult}`);
+  t.true(lowerCaseResult.includes(expectedResponseFragment2), `Aider response should mention '${expectedResponseFragment2}'. Response: ${queryResult}`);
   log('Received Aider response for Phase 4.2 query (truncated): ', queryResult.substring(0, 100) + '...');
 });
 
 test('Phase 4.3: should prevent modification of file added as read-only', async t => {
-  const localPath = path.join(tempDir, 'repo-phase4.3');
+  const { localPath } = await setupTestRepoAndCore(t, '4.3'); // Use helper
   const testUserId = 'user-4.3';
   const fileToAdd = 'README.md';
   const readmePath = path.join(localPath, fileToAdd);
   const modifyPrompt = `Add the line "Modified by test 4.3" to the end of ${fileToAdd}`;
-  const expectedReadOnlyResponseFragment = 'read-only'; // Aider should indicate this
-
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 4.3'
-  );
-  const initialContent = await fs.readFile(readmePath, 'utf-8'); // Read initial content
-
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 4.3'
-  );
+  
+  const initialContent = await fs.readFile(readmePath, 'utf-8'); 
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.3');
-  // Use record mode initially, then switch to replay
   const sequenceName = 'phase4.3-verify-add-readonly';
   await proxy.setSequence(sequenceName, { recordMode: false });
 
-  // 2. Send '/add' command (implicitly read-only for now)
-  // TODO: Update coreService to explicitly handle read-only flag if needed
-  const addCommand = `/add ${fileToAdd}`;
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
-    userId: testUserId,
-  });
+  const addCommand = `/add ${fileToAdd}`; // coreService adds as read-only by default now
+  const addPromise = coreService.handleIncomingMessage({ message: addCommand, userId: testUserId });
   await t.notThrowsAsync(addPromise, `/add command failed`);
   const addResult = await addPromise;
-  t.truthy(addResult, 'Should receive a response after /add command');
-  // Expect confirmation from Aider's response processing
   t.true(addResult.includes(`Added ${fileToAdd} to the chat context`), 'Response should confirm file addition');
+  // TODO: Update coreService to explicitly handle read-only flag if needed (Comment remains)
 
-  // 3. Send a prompt requesting modification
-  const modifyPromise = coreService.handleIncomingMessage({
-    message: modifyPrompt,
-    userId: testUserId,
-  });
+  const modifyPromise = coreService.handleIncomingMessage({ message: modifyPrompt, userId: testUserId });
   await t.notThrowsAsync(modifyPromise, 'Modification prompt failed');
   const modifyResult = await modifyPromise;
-
-  // 4. Verify Aider's response indicates the file is read-only (or cannot be modified)
   t.truthy(modifyResult, 'Should receive a response to the modification prompt');
   t.false(modifyResult.includes('<<<<<<< SEARCH'), 'Aider response should not contain a diff block for read-only file');
   t.false(modifyResult.includes('>>>>>>> REPLACE'), 'Aider response should not contain a diff block for read-only file');
   log('Received Aider response for Phase 4.3 query (truncated): ', modifyResult.substring(0, 100) + '...');
 
-  // 5. Verify file content has NOT changed
   const finalContent = await fs.readFile(readmePath, 'utf-8');
   t.is(finalContent, initialContent, `${fileToAdd} content should not have changed.`);
 });
 
 test('Phase 4.4: should remove a file from context using /remove command', async t => {
-  const localPath = path.join(tempDir, 'repo-phase4.4');
+  const { localPath } = await setupTestRepoAndCore(t, '4.4'); // Use helper
   const testUserId = 'user-4.4';
   const fileToRemove = 'src/server.js';
   const questionAboutFile = 'What does src/server.js do?';
   const originalContentFragment = 'express';
 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 4.4'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 4.4'
-  );
-
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.4');
   const sequenceName = 'phase4.4-verify-remove';
   await proxy.setSequence(sequenceName, { recordMode: false });
 
-  // 2. Add the file first
   const addCommand = `/add ${fileToRemove}`;
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
-    userId: testUserId,
-  });
+  const addPromise = coreService.handleIncomingMessage({ message: addCommand, userId: testUserId });
   await t.notThrowsAsync(addPromise, `/add command failed before remove`);
   const addResult = await addPromise;
   t.true(addResult.includes(`Added ${fileToRemove} to the chat context`), 'Add confirmation failed');
 
-  // 2.5 Ask question *with* context (original content)
   log('Phase 4.4: Query 1 (Original Context)');
-  const initialQueryPromise = coreService.handleIncomingMessage({
-    message: questionAboutFile,
-    userId: testUserId,
-  });
+  const initialQueryPromise = coreService.handleIncomingMessage({ message: questionAboutFile, userId: testUserId });
   await t.notThrowsAsync(initialQueryPromise, 'Initial query with context failed');
   const initialQueryResult = await initialQueryPromise;
-  t.true(initialQueryResult.toLowerCase().includes(originalContentFragment),
-    `Initial response should contain '${originalContentFragment}'. Response: ${initialQueryResult}`);
+  t.true(initialQueryResult.toLowerCase().includes(originalContentFragment), `Initial response should contain '${originalContentFragment}'. Response: ${initialQueryResult}`);
 
-  // 3. Send '/remove' command
   log('Phase 4.4: Removing context...');
   const removeCommand = `/remove ${fileToRemove}`;
-  const removePromise = coreService.handleIncomingMessage({
-    message: removeCommand,
-    userId: testUserId,
-  });
+  const removePromise = coreService.handleIncomingMessage({ message: removeCommand, userId: testUserId });
   await t.notThrowsAsync(removePromise, `/remove command failed`);
   const removeResult = await removePromise;
   t.true(removeResult.includes(`Removed ${fileToRemove} from the chat context`), 'Response should confirm file removal');
 
-  // 4. Ask the *same* question again, *without* context
   log('Phase 4.4: Query 2 (No Context)');
-  const finalQueryPromise = coreService.handleIncomingMessage({
-    message: questionAboutFile,
-    userId: testUserId,
-  });
+  const finalQueryPromise = coreService.handleIncomingMessage({ message: questionAboutFile, userId: testUserId });
   await t.notThrowsAsync(finalQueryPromise, 'Final query after /remove failed');
   const finalQueryResult = await finalQueryPromise;
-
-  // 5. Verify Aider's response lacks knowledge from original file
   t.truthy(finalQueryResult, 'Should receive a response to the final query');
-  // t.false(finalQueryResult.toLowerCase().includes(originalContentFragment),
-  //   `Final response should NOT contain ORIGINAL fragment '${originalContentFragment}' after removal. Response: ${finalQueryResult}`);
-
+  // Removed commented assertion
   log('Received Aider response for Phase 4.4 final query (truncated): ', finalQueryResult.substring(0, 100) + '...');
 });
 
 test('Phase 4.5: should clear context using /clear command', async t => {
-  const localPath = path.join(tempDir, 'repo-phase4.5');
+  const { localPath } = await setupTestRepoAndCore(t, '4.5'); // Use helper
   const testUserId = 'user-4.5';
   const fileToAdd = 'README.md';
-  const dirToAdd = 'src'; // Contains index.js, server.js
-
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 4.5'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 4.5'
-  );
+  const dirToAdd = 'src'; 
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.5');
   const sequenceName = 'phase4.5-verify-clear';
-  // Switch back to replay mode
   await proxy.setSequence(sequenceName); 
 
-  // 2. Add a file and a directory
   await coreService.handleIncomingMessage({ message: `/add ${fileToAdd}`, userId: testUserId });
   await coreService.handleIncomingMessage({ message: `/add ${dirToAdd}`, userId: testUserId });
-  // TODO: Verify coreState.contextFiles has README.md, src/index.js, src/server.js
+  // TODO: Verify coreState.contextFiles has README.md, src/index.js, src/server.js (Comment remains)
 
-  // 3. Send '/clear' command
   const clearCommand = '/clear';
-  const clearPromise = coreService.handleIncomingMessage({
-    message: clearCommand,
-    userId: testUserId,
-  });
+  const clearPromise = coreService.handleIncomingMessage({ message: clearCommand, userId: testUserId });
   await t.notThrowsAsync(clearPromise, `/clear command failed`);
   const clearResult = await clearPromise;
-  t.true(clearResult.includes('Chat context cleared.'), 'Response should confirm context clear'); // This will fail first
-  // TODO: Verify coreState.contextFiles is empty
+  t.true(clearResult.includes('Chat context cleared.'), 'Response should confirm context clear'); 
+  // TODO: Verify coreState.contextFiles is empty (Comment remains)
 
-  // 4. Ask an unrelated question
   const finalQuestion = 'Say hello.';
-  const finalQueryPromise = coreService.handleIncomingMessage({
-    message: finalQuestion,
-    userId: testUserId,
-  });
+  const finalQueryPromise = coreService.handleIncomingMessage({ message: finalQuestion, userId: testUserId });
   await t.notThrowsAsync(finalQueryPromise, 'Final query after /clear failed');
   const finalQueryResult = await finalQueryPromise;
-
-  // 5. Verify Aider's response and check logs for context
   t.truthy(finalQueryResult, 'Should receive a response to the final query');
   log('Received Aider response for Phase 4.5 final query (truncated): ', finalQueryResult.substring(0, 100) + '...');
-  // MANUAL CHECK: Inspect logs to ensure aiderOptions for the final call show empty context.
+  // MANUAL CHECK: Inspect logs to ensure aiderOptions for the final call show empty context. (Comment remains)
 });
 
 test('Phase 4.6: should demonstrate context token changes', async t => {
-  // t.timeout(90000); // Remove increased timeout
-
-  const localPath = path.join(tempDir, 'repo-phase4.6');
+  const { localPath } = await setupTestRepoAndCore(t, '4.6'); // Use helper
   const testUserId = 'user-4.6';
   const fileToAdd = 'src/server.js';
-  // const simplePrompt = 'Say hi'; // Change to unique prompts
-
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 4.6'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 4.6'
-  );
 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.6');
   const sequenceName = 'phase4.6-context-size-test';
-  // Set back to REPLAY mode
   await proxy.setSequence(sequenceName); 
 
-  // Helper to extract token counts (RESTORED)
+  // Helper to extract token counts (Keep helper)
   const getTokenCounts = (result) => {
     if (!result || typeof result !== 'string') return { sent: null, received: null };
     // Match variations: "X.Yk sent", "X sent"
@@ -904,50 +752,32 @@ test('Phase 4.6: should demonstrate context token changes', async t => {
 
   // --- Interaction 1: Initial Query (No Context) ---
   log('Test 4.6 - Interaction 1: Sending prompt');
-  const initialQueryResult = await coreService.handleIncomingMessage({
-    // message: 'Say hi 1',
-    message: 'Describe the concept of middleware in Express.',
-    userId: testUserId,
-  });
+  const initialQueryResult = await coreService.handleIncomingMessage({ message: 'Describe the concept of middleware in Express.', userId: testUserId });
   const tokens1 = getTokenCounts(initialQueryResult);
   log(`Test 4.6 - Interaction 1: Tokens: ${JSON.stringify(tokens1)}`);
-  // t.truthy(tokens1?.sent !== null, 'Could not parse initial token count'); // SKIP assertion due to upstream issue
+  // Removed commented assertion
   
   // --- Interaction 2: Query With Context ---
   log('Test 4.6 - Interaction 2: Adding file');
   const addCommand = `/add ${fileToAdd}`;
   const addResult = await coreService.handleIncomingMessage({ message: addCommand, userId: testUserId });
   t.true(addResult.includes(`Added ${fileToAdd}`), `Add command confirmation missing. Got: ${addResult}`);
-
   log('Test 4.6 - Interaction 2: Sending prompt with context');
-  const queryWithContextResult = await coreService.handleIncomingMessage({
-    // message: 'Say hi 2',
-    message: 'Based only on the provided context file src/server.js, what does it export?',
-    userId: testUserId,
-  });
+  const queryWithContextResult = await coreService.handleIncomingMessage({ message: 'Based only on the provided context file src/server.js, what does it export?', userId: testUserId });
   const tokens2 = getTokenCounts(queryWithContextResult);
   log(`Test 4.6 - Interaction 2: Tokens: ${JSON.stringify(tokens2)}`);
-  // t.truthy(tokens2?.sent !== null, 'Could not parse token count with file'); // SKIP assertion due to upstream issue
-  // t.true(tokens2.sent > tokens1.sent, `Tokens sent should increase after adding file (${tokens2.sent} !> ${tokens1.sent})`); // SKIP assertion
+  // Removed commented assertions
 
   // --- Interaction 3: Remove File & Query (No Context Again) ---
   log('Test 4.6 - Interaction 3: Removing file');
   const removeCommand = `/remove ${fileToAdd}`;
   const removeResult = await coreService.handleIncomingMessage({ message: removeCommand, userId: testUserId });
   t.true(removeResult.includes(`Removed ${fileToAdd}`), `Remove command confirmation missing. Got: ${removeResult}`);
-
   log('Test 4.6 - Interaction 3: Sending final prompt');
-  const finalQueryResult = await coreService.handleIncomingMessage({
-    // message: 'Say hi 3',
-    message: 'Describe the concept of middleware in Express.', // Same as first prompt
-    userId: testUserId,
-  });
+  const finalQueryResult = await coreService.handleIncomingMessage({ message: 'Describe the concept of middleware in Express.', userId: testUserId });
   const tokens3 = getTokenCounts(finalQueryResult);
   log(`Test 4.6 - Interaction 3: Tokens: ${JSON.stringify(tokens3)}`);
-  // t.truthy(tokens3?.sent !== null, 'Could not parse final token count'); // SKIP assertion
-  // Check that final tokens are less than tokens with context
-  // t.true(tokens3.sent < tokens2.sent, `Final tokens should decrease after removing file (${tokens3.sent} !< ${tokens2.sent})`); // SKIP assertion
-  // We don't assert tokens3 === tokens1 because conversation history adds tokens
+  // Removed commented assertions
 
   t.pass('Test 4.6 completed all interactions and token checks.'); 
 });
@@ -955,84 +785,35 @@ test('Phase 4.6: should demonstrate context token changes', async t => {
 // --- Phase 5: Model Configuration --- 
 
 test('Phase 5.1: should set the model using core service', async t => {
-  const localPath = path.join(tempDir, 'repo-phase5.1');
+  const { localPath } = await setupTestRepoAndCore(t, '5.1'); // Use helper
   const testUserId = 'user-5.1';
   const newModel = 'anthropic/claude-3-opus-20240229';
 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 5.1'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 5.1'
-  );
-
-  // Ensure coreService has the default model initially (optional but good practice)
-  // This requires adding a way to get the current model from coreService
-  // const initialModel = await coreService.getCurrentModel({ userId: testUserId });
-  // t.is(initialModel, DEFAULT_MODEL, 'Initial model should be the default');
-
-  // 2. Call the (not yet existing) setModel function
-  const setModelPromise = coreService.setModel({
-    modelName: newModel,
-    userId: testUserId, // Assuming model is per-user or session
-  });
-
-  // Assert the setModel operation completes without throwing (will fail initially)
+  const setModelPromise = coreService.setModel({ modelName: newModel, userId: testUserId });
   await t.notThrowsAsync(setModelPromise, 'coreService.setModel failed');
-
-  // 3. Verify the model was actually set (requires a getter)
-  // const updatedModel = await coreService.getCurrentModel({ userId: testUserId });
-  // t.is(updatedModel, newModel, `Model should be updated to ${newModel}`);
-
-  // For now, just ensure the function can be called without error.
-  // Verification of the model being *used* will happen in Step 5.2.
   t.pass('coreService.setModel called without error (implementation pending)');
 });
 
 test('Phase 5.2: should use the updated model for Aider interaction', async t => {
-  const localPath = path.join(tempDir, 'repo-phase5.2');
+  const { localPath } = await setupTestRepoAndCore(t, '5.2'); // Use helper
   const testUserId = 'user-5.2';
-  const customModel = 'anthropic/claude-3-haiku-20240307'; // Use a different model
+  const customModel = 'anthropic/claude-3-haiku-20240307'; 
   const testPrompt = 'Say hello using the custom model.';
   const sequenceName = 'phase5.2-verify-model-use';
 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 5.2'
-  );
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 5.2'
-  );
-
-  // 2. Set the custom model
   await t.notThrowsAsync(
     coreService.setModel({ modelName: customModel, userId: testUserId }),
     'setModel failed for Phase 5.2'
   );
 
-  // 3. Setup Echoproxia for replay
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 5.2');
-  await proxy.setSequence(sequenceName); // Let global ECHOPROXIA_MODE control recording
+  await proxy.setSequence(sequenceName); 
 
-  // 4. Send a message, triggering Aider interaction
-  const handleMessagePromise = coreService.handleIncomingMessage({
-    message: testPrompt,
-    userId: testUserId,
-  });
-
-  // Assert message handling doesn't throw
+  const handleMessagePromise = coreService.handleIncomingMessage({ message: testPrompt, userId: testUserId });
   await t.notThrowsAsync(handleMessagePromise, 'handleIncomingMessage failed after setModel');
   const result = await handleMessagePromise;
   t.truthy(result, 'Should receive a response after setting model');
-
-  // 5. Verification (Requires checking logs or recorded request)
-  // TODO: Add log inspection or ideally check the recorded Echoproxia request 
-  // to confirm `modelName` was `customModel` in the API call.
+  // TODO: Add log inspection or ideally check the recorded Echoproxia request (Comment remains)
   log(`Phase 5.2: Received response: ${result.substring(0,100)}... Check logs/recording for model usage.`);
   t.pass('Phase 5.2 interaction completed. Manual/log check needed for model verification.');
 });
@@ -1040,145 +821,80 @@ test('Phase 5.2: should use the updated model for Aider interaction', async t =>
 // --- Phase 6: Git Push Functionality --- 
 
 test('Phase 6.1: should make a change via Aider and leave it unpushed', async t => {
-  const localPath = path.join(tempDir, 'repo-phase6.1');
+  const { localPath, git } = await setupTestRepoAndCore(t, '6.1'); // Use helper
   const testUserId = 'user-6.1';
   const fileToModify = 'README.md';
   const changePrompt = `Add the line \"Change for Phase 6.1\" to ${fileToModify}`;
   const sequenceName = 'phase6.1-make-change';
 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 6.1'
-  );
-  // Ensure git user is configured for aider commit
-  const git = simpleGit(localPath);
-  await git.addConfig('user.email', 'test-6.1@example.com', true, 'local');
-  await git.addConfig('user.name', 'Test User 6.1', true, 'local');
+  // Note: setupTestRepoAndCore handles git config now
 
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 6.1'
-  );
-
-  // 2. Add the file to context (so Aider can modify it)
-  // We need to make it editable, not read-only. 
-  // For now, let's assume coreService needs an update to handle editable files.
-  // HACK: We will just send the prompt without adding the file first,
-  // relying on Aider to find and edit it directly based on the prompt.
-  // await coreService.handleIncomingMessage({ message: `/add ${fileToModify} --editable`, userId: testUserId });
-
-  // 3. Setup Echoproxia for replay
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 6.1');
-  await proxy.setSequence(sequenceName); // Let global ECHOPROXIA_MODE control recording
+  await proxy.setSequence(sequenceName); 
 
-  // 4. Send prompt to make the change
-  const changePromise = coreService.handleIncomingMessage({
-    message: changePrompt,
-    userId: testUserId,
-  });
-
-  // Assert change doesn't throw
+  const changePromise = coreService.handleIncomingMessage({ message: changePrompt, userId: testUserId });
   await t.notThrowsAsync(changePromise, 'Aider change request failed');
   const result = await changePromise;
   t.truthy(result, 'Should receive a response after change request');
-  // TODO: Could add assertion here that result indicates success/diff applied
+  // TODO: Could add assertion here that result indicates success/diff applied (Comment remains)
 
-  // --- Verification --- 
-  // 5. Verify file is modified locally
   const readmeContent = await fs.readFile(path.join(localPath, fileToModify), 'utf-8');
   t.true(readmeContent.includes('Change for Phase 6.1'), 'README.md should contain the new line');
 
-  // 6. Verify git status shows modification (Keep)
   const status = await git.status();
-  // Aider typically auto-commits.
-  // t.true(status.modified.includes(fileToModify) || status.staged.includes(fileToModify), `Git status should show ${fileToModify} modified/staged`);
   const logResult = await git.log();
   t.log("Latest commit message:", logResult.latest?.message);
-  // t.true(logResult.latest?.message.includes('Phase 6.1'), 'Latest commit message should reflect the change'); // Remove assertion - Aider controls commit msg
+  // Removed commented assertions
 
-  // 7. Verify the commit is local only (not pushed yet)
   const branches = await gitService.listBranches({ localPath });
   const localBranchInfo = branches.branches[WORKING_BRANCH];
   const remoteBranchInfo = branches.branches[`remotes/origin/${WORKING_BRANCH}`];
-
   t.truthy(localBranchInfo, `Local branch ${WORKING_BRANCH} should exist`);
-  // If the remote branch doesn't exist yet, this check is simple
   if (!remoteBranchInfo) {
       t.pass('Remote branch doesn\'t exist yet, change is local only.');
   } else {
-      // If remote exists, check if hashes differ
       t.log(`Local Hash: ${localBranchInfo.commit}, Remote Hash: ${remoteBranchInfo.commit}`);
       t.not(localBranchInfo.commit, remoteBranchInfo.commit, 'Local commit hash should differ from remote after change');
   }
 });
 
 test('Phase 6.2: should push local changes to remote using core service', async t => {
-  const localPath = path.join(tempDir, 'repo-phase6.2');
-  const testUserId = 'user-6.2'; // Using core service, so need user id
+  const { localPath, git } = await setupTestRepoAndCore(t, '6.2'); // Use helper
+  const testUserId = 'user-6.2'; 
   const fileToModify = 'README.md';
   const changePrompt = `Add the line \"Change for Phase 6.2\" to ${fileToModify}`;
-  const sequenceName = 'phase6.2-push-change'; // Need a new sequence
+  const sequenceName = 'phase6.2-push-change'; 
 
-  // --- Setup: Create a local commit to push --- 
-  // 1. Clone & Initialize Core
-  await t.notThrowsAsync(
-    gitService.cloneRepo({ repoUrl: REPO_URL, localPath }),
-    'Clone failed for Phase 6.2'
-  );
-  const git = simpleGit(localPath);
-  await git.addConfig('user.email', 'test-6.2@example.com', true, 'local');
-  await git.addConfig('user.name', 'Test User 6.2', true, 'local');
-  await t.notThrowsAsync(
-    coreService.initializeCore({ repoPath: localPath }),
-    'Core init failed for Phase 6.2'
-  );
+  // Note: setupTestRepoAndCore handles clone, core init, git config
 
-  // 2. Make change via Aider (record this interaction)
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 6.2');
-  await proxy.setSequence(sequenceName); // Let global mode control record/replay
-  const changePromise = coreService.handleIncomingMessage({
-    message: changePrompt,
-    userId: testUserId,
-  });
+  await proxy.setSequence(sequenceName); 
+  const changePromise = coreService.handleIncomingMessage({ message: changePrompt, userId: testUserId });
   await t.notThrowsAsync(changePromise, 'Aider change request failed');
   await changePromise;
 
-  // 3. Verify change exists locally but not remotely before push
   const branchesBefore = await gitService.listBranches({ localPath });
   const localBranchBefore = branchesBefore.branches[WORKING_BRANCH];
   const remoteBranchBefore = branchesBefore.branches[`remotes/origin/${WORKING_BRANCH}`];
   t.truthy(localBranchBefore, `Local branch ${WORKING_BRANCH} should exist before push`);
-  if (remoteBranchBefore) { // Remote might not exist yet if first time
+  if (remoteBranchBefore) { 
       t.not(localBranchBefore.commit, remoteBranchBefore.commit, 'Local commit hash should differ from remote before push');
   } else {
       t.log('Remote branch does not exist before push, as expected.');
   }
 
-  // --- Execution: Push the changes --- 
-  // 4. Call the (not yet existing) pushChanges function
-  const pushPromise = coreService.pushChanges({
-    userId: testUserId, // Might need user context
-    // Potentially add branch name or other options later
-  });
-
-  // Assert the push operation completes without throwing (will fail initially)
+  const pushPromise = coreService.pushChanges({ userId: testUserId });
   await t.notThrowsAsync(pushPromise, 'coreService.pushChanges failed');
 
-  // --- Verification --- 
-  // 5. Fetch latest remote state
-  await git.fetch('origin');
+  await git.fetch('origin'); // Fetch requires SSH, but coreService.pushChanges handles its own SSH env
 
-  // 6. Verify local and remote commit hashes match
   const branchesAfter = await gitService.listBranches({ localPath }); 
   const localBranchAfter = branchesAfter.branches[WORKING_BRANCH];
   const remoteBranchAfter = branchesAfter.branches[`remotes/origin/${WORKING_BRANCH}`];
-
   t.truthy(localBranchAfter, `Local branch ${WORKING_BRANCH} should exist after push`);
   t.truthy(remoteBranchAfter, `Remote branch origin/${WORKING_BRANCH} should exist after push`);
   t.is(localBranchAfter.commit, remoteBranchAfter.commit, 'Local and remote commit hashes should match after push');
-
   t.pass('coreService.pushChanges executed and commit hashes match.');
 });
 
-// --- Phase 7: Discord Adapter ---
+// --- Phase 7: Discord Adapter --- // No tests here
