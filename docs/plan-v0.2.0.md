@@ -39,12 +39,12 @@
 
 **Goal:** Improve logging and monitoring capabilities.
 
-*   [ ] **Step 9.1: Add Configurable Logging Channel**
-    *   [ ] Define a new environment variable (e.g., `LOGGING_CHANNEL_ID`).
-    *   [ ] If set, retrieve the channel object during bot startup.
-*   [ ] **Step 9.2: Send Detailed Logs to Channel**
-    *   [ ] Implement logic to send important logs (errors, critical events, startup info) to the configured logging channel.
-    *   [ ] Ensure logs are formatted clearly. Avoid excessive noise.
+*   [x] **Step 9.1: Add Configurable Logging Channel**
+    *   [x] Define a new environment variable (e.g., `LOGGING_CHANNEL_ID`).
+    *   [x] If set, retrieve the channel object during bot startup.
+*   [x] **Step 9.2: Send Detailed Logs to Channel**
+    *   [x] Implement logic to send important logs (errors, critical events, startup info) to the configured logging channel.
+    *   [x] Ensure logs are formatted clearly. Avoid excessive noise.
 
 ---
 
@@ -52,12 +52,12 @@
 
 **Goal:** Improve usability and functionality of existing slash commands and add new ones.
 
-*   [ ] **Step 10.1: Implement `/add` Autocomplete**
-    *   [ ] Fetch file/directory structure from the local repository.
-    *   [ ] Provide relevant suggestions as the user types the path argument.
-*   [ ] **Step 10.2: Implement `/remove` Autocomplete**
-    *   [ ] Fetch the current context list from the `core` module.
-    *   [ ] Provide suggestions based on items currently in the context.
+*   [x] **Step 10.1: Implement `/add` Autocomplete**
+    *   [x] Fetch file/directory structure from the local repository.
+    *   [x] Provide relevant suggestions as the user types the path argument.
+*   [x] **Step 10.2: Implement `/remove` Autocomplete**
+    *   [x] Fetch the current context list from the `core` module.
+    *   [x] Provide suggestions based on items currently in the context.
 *   [ ] **Step 10.3: Implement `/model` Autocomplete**
     *   [ ] Integrate logic to fetch available models (e.g., via `aider-js` or OpenRouter API).
     *   [ ] Provide model name suggestions for the `/model` command.

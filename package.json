@@ -13,7 +13,9 @@
     "test:env:down": "docker compose -f docker-compose.test.yml down",
     "test:env:ssh": "docker compose -f docker-compose.test.yml exec test-runner ssh git-server",
     "test:env:exec": "docker compose -f docker-compose.test.yml exec test-runner bash",
-    "start:prod:local": "docker compose -f docker-compose.prod-local.yml up --build"
+    "start:prod:local": "docker compose -f docker-compose.prod-local.yml up --build",
+    "start": "node app.js",
+    "deploy:commands": "node scripts/deploy-commands.js"
   },
   "keywords": [],
   "author": "David Guttman <david@davidguttman.com> (http://davidguttman.com/)",
