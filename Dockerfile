@@ -25,8 +25,9 @@ RUN npm install
 # Assuming ./lib and ./app.js are sufficient
 COPY lib ./lib
 COPY app.js .
+COPY scripts/deploy-commands.js ./scripts/deploy-commands.js
 
 # No user change - run as root like Dockerfile.test
 
 # Set the default command to run the application
-CMD ["node", "app.js"]
+CMD ["sh", "-c", "npm run deploy:commands && node app.js"]
