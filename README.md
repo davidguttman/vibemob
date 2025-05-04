@@ -142,3 +142,7 @@ This guide demonstrates how to interact with the Vibemob bot in Discord.
 - [ ] /add + /remove autocomplete
 - [ ] /context list
 - [ ] /model autocomplete/search
+- [ ] fix /add so it has read-only toggle (not always read only?)
+- [ ] if aider adds to the context, make it visible in /context
+- [ ] fix /add and /remove auto complete bug "loading options failed"
+- [ ] improve code block rendering. it shouldn't be in embeds
