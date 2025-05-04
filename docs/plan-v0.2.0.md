@@ -10,15 +10,15 @@
 *   **Testing:** Ensure new functionality is covered by tests (either extending existing E2E or adding new focused tests as needed).
 *   **Core/Adapter Separation:** Maintain the separation between `core` logic and `discord-adapter` interface logic.
 *   **Testing Discord Interaction:** Implement a test double for `discord.js` to enable testing `lib/discord-adapter.js` without connecting to actual Discord services.
-    *   Create a `lib/discord-double` directory.
-    *   Create `lib/discord-double/index.js`: This file will conditionally export the real `discord.js` library or the test double based on `process.env.NODE_ENV`.
-    *   Create `lib/discord-double/discord-double.js`: This file will contain the mock implementation, replicating the necessary `discord.js` API surface used by `lib/discord-adapter.js`. This includes:
+    *   Create a `lib/discord` directory (if not already present).
+    *   Create `lib/discord/index.js`: This file will conditionally export the real `discord.js` library or the test double based on `process.env.NODE_ENV`.
+    *   Create `lib/discord/discord-test.js`: This file will contain the mock implementation, replicating the necessary `discord.js` API surface used by `lib/discord-adapter.js`. This includes:
         *   A mock `Client` class/object supporting `new Client({ intents })`, `.once(Events.ClientReady, ...)`, `.on(Events.MessageCreate, ...)`, `.on(Events.InteractionCreate, ...)`, `.login(token)`, and a `.user` property.
         *   Mock `Events`, `GatewayIntentBits`, `AttachmentBuilder`, and `SlashCommandBuilder` objects/classes.
         *   Mock structures for `message`, `interaction`, `channel`, `thread`, and `member` objects, providing the methods and properties used in the adapter (e.g., `message.startThread`, `interaction.reply`, `channel.send`, `member.roles.cache.has`).
         *   An internal mechanism (like `EventEmitter`) to simulate Discord events (`MessageCreate`, `InteractionCreate`) for tests.
         *   Methods to retrieve sent messages/interactions for test assertions (e.g., `getSentMessages()`, `clearSentMessages()`).
-    *   Modify `lib/discord-adapter.js` to import from `./discord-double/index.js` instead of directly from `discord.js`.
+    *   Modify `lib/discord-adapter.js` to import from `./discord/index.js` instead of directly from `discord.js`.
 
 ---
 
