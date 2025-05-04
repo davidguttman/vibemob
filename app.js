@@ -1,3 +1,4 @@
+// console.log('--- app.js started ---');
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
