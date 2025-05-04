@@ -30,4 +30,5 @@ COPY scripts/deploy-commands.js ./scripts/deploy-commands.js
 # No user change - run as root like Dockerfile.test
 
 # Set the default command to run the application
+ENV NODE_ENV=production
 CMD ["sh", "-c", "npm run deploy:commands && node app.js"]
