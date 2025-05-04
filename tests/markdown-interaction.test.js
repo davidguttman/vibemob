@@ -111,4 +111,34 @@ test.serial('Generate markdown explanation', async t => {
   console.log(response);
 
   t.pass();
+});
+
+test.serial('Generate full file output', async t => {
+  const userId = 'markdown-tester';
+  const readmePath = 'README.md';
+
+  // --- Add README.md to context ---
+  log(`Adding ${readmePath} to context for user ${userId}`);
+  let response = await coreService.handleIncomingMessage({
+    message: `/add ${readmePath}`,
+    userId: userId,
+  });
+  // Adjust assertion based on expected core response for adding README.md
+  t.true(response?.includes('Added README.md to the chat context'), `Failed to add ${readmePath}. Response: ${response}`);
+  log('--- Context Add Response ---');
+  console.log(response);
+
+  // --- Ask for file content ---
+  const showPrompt = `Show me the full content of \`${readmePath}\``;
+  log(`Sending show prompt: "${showPrompt}"`);
+  response = await coreService.handleIncomingMessage({
+    message: showPrompt,
+    userId: userId,
+  });
+  t.truthy(response, 'Did not get a response for the show request');
+  console.log('--- Show File Response (stdout) ---');
+  console.log(response); // Log the raw stdout for analysis
+
+  // We don't need to assert content here, just capture the output
+  t.pass();
 }); 

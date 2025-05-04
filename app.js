@@ -24,14 +24,17 @@ async function main() {
   log('Starting application...');
 
   if (!config.repoPath) {
-    logError('FATAL: repoPath is not defined in config. Cannot initialize core service.');
-    process.exit(1);
+    log('WARN: repoPath is not defined in config. Core service features requiring a repository (like Aider) will be unavailable.');
   }
 
   try {
-    log(`Initializing core service with repo path: ${config.repoPath}`);
-    await coreService.initializeCore({ repoPath: config.repoPath });
-    log('Core service initialized successfully.');
+    if (config.repoPath) {
+      log(`Initializing core service with repo path: ${config.repoPath}`);
+      await coreService.initializeCore({ repoPath: config.repoPath });
+      log('Core service initialized successfully.');
+    } else {
+      log('Skipping core service initialization as repoPath is not configured.');
+    }
 
     log('Starting Discord adapter...');
     await discordAdapter.start(); // Assuming start() handles login etc.

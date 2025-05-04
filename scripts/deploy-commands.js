@@ -4,6 +4,7 @@ import { Routes } from 'discord-api-types/v10';
 import config from '../lib/config.js'; // Adjust path as needed
 import { commandData } from '../lib/discord/commands.js'; // Import the command JSON data
 import debug from 'debug';
+import { SlashCommandBuilder } from '@discordjs/builders';
 
 const log = debug('vibemob:deploy');
 const logError = debug('vibemob:deploy:error');
@@ -48,4 +49,19 @@ const rest = new REST({ version: '10' }).setToken(token);
     logError('Failed to deploy commands:', error);
     process.exitCode = 1; // Indicate failure
   }
-})(); 
+})();
+
+const showCommand = new SlashCommandBuilder()
+    .setName('show')
+    .setDescription('Shows the full content of a file from the repository.')
+    .addStringOption(option =>
+        option.setName('path')
+            .setDescription('The relative path to the file within the repository.')
+            .setRequired(true));
+
+const commands = [
+    ...commandData,
+    showCommand.toJSON()
+];
+
+// ... rest of the script ... 
