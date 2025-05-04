@@ -58,13 +58,14 @@
 *   [x] **Step 10.2: Implement `/remove` Autocomplete**
     *   [x] Fetch the current context list from the `core` module.
     *   [x] Provide suggestions based on items currently in the context.
-*   [ ] **Step 10.3: Implement `/model` Autocomplete**
-    *   [ ] Integrate logic to fetch available models (e.g., via `aider-js` or OpenRouter API).
-    *   [ ] Provide model name suggestions for the `/model` command.
-*   [ ] **Step 10.4: Implement `/context` Command**
-    *   [ ] Create a new slash command `/context`.
-    *   [ ] Fetch the current context list from the `core` module.
-    *   [ ] Display the context list (files/directories, read-only status) to the user in the Discord channel.
+*   [x] **Step 10.3: Implement `/model` Autocomplete**
+    *   [x] Integrate logic to fetch available models (e.g., via `aider-js` or OpenRouter API).
+    *   [x] Provide model name suggestions for the `/model` command.
+    *   NOTE: Currently implemented using a static list in `lib/config.js`. Future enhancement: dynamically query API.
+*   [x] **Step 10.4: Implement `/context` Command**
+    *   [x] Create a new slash command `/context`.
+    *   [x] Fetch the current context list from the `core` module.
+    *   [x] Display the context list (files/directories, read-only status) to the user in the Discord channel.
 
 ---
 
@@ -72,13 +73,13 @@
 
 **Goal:** Make the bot's responses clearer and more readable in Discord.
 
-*   [ ] **Step 11.1: Syntax Highlighting for Code Blocks**
-    *   [ ] Detect code blocks (e.g., ```lang ... ```) in Aider's responses.
-    *   [ ] Format them using Discord's markdown for syntax highlighting (e.g., ```js ... ```, ```diff ... ```, ```py ... ```).
+*   [x] **Step 11.1: Syntax Highlighting for Code Blocks**
+    *   [x] Detect code blocks (e.g., ```lang ... ```) in Aider's responses.
+    *   [x] Format them using Discord's markdown for syntax highlighting (e.g., ```js ... ```, ```diff ... ```, ```py ... ```).
+    *   NOTE: Relies on existing `lib/utils.js#splitMessage` logic and assumes `aider-js` provides language identifiers.
 *   [ ] **Step 11.2: Markdown Rendering via Embeds**
     *   [ ] Detect markdown content in Aider's responses.
     *   [ ] Use Discord embeds to render the markdown for better formatting (headings, lists, links, etc.).
-    *   [ ] Handle potential embed character limits.
 *   [ ] **Step 11.3: Send Full Files as Attachments**
     *   [ ] Detect when Aider's response represents a full file's content.
     *   [ ] Send the full content as a file attachment instead of (or in addition to) a message block.
