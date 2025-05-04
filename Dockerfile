@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Set git config defaults for the bot user
+RUN git config --global user.name "Vibemob"
+RUN git config --global user.email "vibemob@vibemob.ai"
+
 # Copy package files
 COPY package.json package-lock.json* ./
 # Run full install like Dockerfile.test (includes devDeps)
