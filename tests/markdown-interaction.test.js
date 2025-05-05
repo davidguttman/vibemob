@@ -2,7 +2,8 @@ import test from 'ava'
 import fs from 'fs/promises'
 import path from 'path'
 import os from 'os'
-import { coreService } from '../lib/index.js'
+// Use namespace import for coreService
+import * as coreService from '../lib/index.js'
 import { gitService } from '../lib/index.js'
 import simpleGit from 'simple-git'
 import { fileURLToPath } from 'url'
@@ -118,8 +119,10 @@ test.serial('Generate markdown explanation', async (t) => {
     userId: userId,
   })
   t.truthy(response, 'Did not get a response for the explanation request')
+  // Check the content property of the response object
+  t.truthy(response.content, 'Response content should not be empty');
   console.log('--- Explanation Response ---')
-  console.log(response)
+  console.log(response.content) // Log the content
 
   t.pass()
 })
@@ -130,17 +133,19 @@ test.serial('Generate full file output', async (t) => {
 
   // --- Add README.md to context ---
   log(`Adding ${readmePath} to context for user ${userId}`)
-  let response = await coreService.handleIncomingMessage({
-    message: `/add ${readmePath}`,
+  // Use the wrapper function
+  let response = await coreService.addFileToContext({
     userId: userId,
+    filePath: readmePath,
+    readOnly: true, // Assuming read-only for this test
   })
   // Adjust assertion based on expected core response for adding README.md
   t.true(
-    response?.includes('Added README.md to the chat context'),
-    `Failed to add ${readmePath}. Response: ${response}`,
+    response?.message?.includes('Added README.md to the chat context'),
+    `Failed to add ${readmePath}. Response: ${response?.message}`,
   )
   log('--- Context Add Response ---')
-  console.log(response)
+  console.log(response?.message)
 
   // --- Ask for file content ---
   const showPrompt = `Show me the full content of \`${readmePath}\``
@@ -150,8 +155,9 @@ test.serial('Generate full file output', async (t) => {
     userId: userId,
   })
   t.truthy(response, 'Did not get a response for the show request')
+  t.truthy(response.content, 'Response content should not be empty for show request');
   console.log('--- Show File Response (stdout) ---')
-  console.log(response) // Log the raw stdout for analysis
+  console.log(response.content) // Log the raw stdout for analysis
 
   // We don't need to assert content here, just capture the output
   t.pass()
