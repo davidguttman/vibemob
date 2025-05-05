@@ -9,16 +9,166 @@ See `docs/plan-v0.2.0.md` for the v0.2 feature development plan.
 
 ---
 
-## Core Goal
+## Overview
 
-Enable Discord users within a specific guild and role to interact with `@dguttman/aider-js` via a bot, using a designated Git repository as the workspace, as detailed in `docs/SPEC_v0.1.md`.
+The Aider Discord Bot is a Proof-of-Concept designed to integrate `@dguttman/aider-js` with Discord. It allows authorized users within a specific Discord guild and role to interact with Aider, using a designated Git repository as the workspace. Users can manage Aider's context, change the language model, and instruct Aider to modify code within the repository.
 
-## Core Architecture
+Key capabilities:
+- Interaction with Aider via Discord mentions and threads.
+- Git repository management (cloning, branch management).
+- Aider context management via slash commands (`/add`, `/remove`, `/clear`, `/context`).
+- LLM model selection via slash command (`/model`).
+- Pushing Aider-generated changes to the remote repository (`/push`).
+- Access control based on Discord guild and role.
 
-The application is split into two main modules:
+The bot serves developers or teams who want to leverage Aider's capabilities directly within their Discord workflow, facilitating collaborative coding and repository management through a conversational interface.
 
-1.  **`core` Module (Discord Agnostic):** Contains the primary application logic (Git interaction via `simple-git`, Aider interaction via `@dguttman/aider-js`, context management, state management).
-2.  **`discord-adapter` Module:** Acts as the interface between Discord (using `discord.js`) and the `core` module, handling Discord events and translating data.
+---
+
+## Project Organization
+
+### Core Systems
+
+1.  **Discord Adapter** (`lib/discord-adapter.js`, `lib/discord/`)
+    -   Handles connection to Discord and event processing (messages, interactions).
+    -   Manages interaction threads.
+    -   Translates Discord commands and messages into calls to the `coreService`.
+    -   Formats and relays responses from `coreService` back to Discord.
+    -   Includes a test double (`lib/discord/discord-test.js`) for testing.
+
+2.  **Core Logic** (`lib/core.js`)
+    -   Orchestrates interactions between Git, Aider, and the Discord adapter.
+    -   Manages application state per user (current model, context files).
+    -   Parses user messages to distinguish commands from Aider prompts.
+    -   Handles context management logic (`/add`, `/remove`, `/clear`).
+
+3.  **Git Service** (`lib/git-service.js`)
+    -   Wraps `simple-git` library for all Git operations.
+    -   Handles cloning, branch checking, creation, pulling, pushing, and resetting.
+    -   Manages SSH key configuration for remote operations.
+
+4.  **Aider Service** (`lib/aider.js`)
+    -   Wraps the `@dguttman/aider-js` library.
+    -   Provides functions to initialize and run Aider with appropriate context and configuration.
+
+5.  **Configuration** (`lib/config.js`)
+    -   Centralizes configuration management.
+    -   Loads settings from environment variables and `.env` file (except in test environment).
+
+### Main Files and Directories
+
+```
+.
+├── CONVENTIONS.md
+├── Dockerfile
+├── Dockerfile.git-server
+├── Dockerfile.test
+├── README.md
+├── app.js                     # Main application entry point
+├── captain-definition
+├── docker-compose.prod-local.yml
+├── docker-compose.test.yml
+├── docs/                      # Documentation, plans, specifications
+│   ├── PROJECT.md             # This file
+│   ├── SPEC_v0.1.md
+│   ├── aider-js-test/         # Specific test setup for aider-js library
+│   │   ├── Dockerfile
+│   │   ├── recordings/
+│   │   └── ... (scripts)
+│   ├── plan-v0.1.0.md
+│   ├── plan-v0.1.1.md
+│   └── plan-v0.2.0.md
+├── lib/                       # Core library code
+│   ├── aider.js               # Wrapper for aider-js library
+│   ├── config.js              # Configuration management
+│   ├── core.js                # Core application logic, state management
+│   ├── discord/               # Discord-specific modules
+│   │   ├── commands.js        # Slash command definitions
+│   │   ├── discord-test.js    # Test double for discord.js
+│   │   └── index.js           # Conditional export for discord.js/discord-test.js
+│   ├── discord-adapter.js     # Handles Discord API interaction
+│   ├── git-service.js         # Wrapper for simple-git operations
+│   ├── index.js               # Exports public library functions/modules
+│   └── utils.js               # Utility functions (e.g., message splitting)
+├── package-lock.json
+├── package.json
+├── repomix-output.txt         # Merged codebase representation (for AI)
+├── scripts/                   # Utility and helper scripts
+│   ├── debug-aider.js
+│   ├── deploy-commands.js     # Deploys Discord slash commands
+│   ├── reset-test-env.sh
+│   ├── run-single-test.sh
+│   └── run-tests.sh           # Main test execution script
+└── tests/                     # Automated tests
+    ├── e2e.test.js            # Main end-to-end test file
+    ├── fixtures/              # Test data, mock repositories, recordings
+    │   ├── git-repo/
+    │   ├── markdown-test-repo/
+    │   ├── recordings/        # Echoproxia recordings for LLM interactions
+    │   └── ssh/               # SSH keys for test Git server
+    └── markdown-interaction.test.js # Test for markdown rendering
+```
+
+### Key Functions and Classes
+
+1.  **Application Entry Point** (`app.js`)
+    -   `main()`: Initializes core services and starts the Discord adapter.
+
+2.  **Discord Adapter** (`lib/discord-adapter.js`)
+    -   `discordAdapter.start()`: Logs the client into Discord.
+    -   `client.on(Events.ClientReady, ...)`: Handler for bot ready state.
+    -   `client.on(Events.MessageCreate, ...)`: Handler for incoming messages (mentions, thread messages).
+    -   `client.on(Events.InteractionCreate, ...)`: Handler for slash commands and autocomplete.
+    -   `_handleInitialMention()`: Creates thread and handles first prompt.
+    -   `_handleThreadMessage()`: Processes subsequent messages in a thread.
+    -   `_relayCoreResponse()`: Formats and sends core service responses to Discord.
+
+3.  **Core Logic** (`lib/core.js`)
+    -   `coreService.initializeCore()`: Clones/sets up the Git repo and initializes state.
+    -   `coreService.handleIncomingMessage()`: Main entry point for processing user text input (commands or prompts).
+    -   `coreService.setModel()`: Sets the LLM model for a specific user.
+    -   `coreService.setConfigOverrides()`: Allows overriding API base/key per user.
+    -   `coreService.pushChanges()`: Triggers a Git push of the working branch.
+    -   `coreService.getContextFiles()`: Retrieves the current file context for a user.
+    -   `coreService.getFileContent()`: Reads content of a specific file in the repo.
+    -   `getUserState()`: Retrieves or initializes the state object for a user.
+
+4.  **Git Service** (`lib/git-service.js`)
+    -   `gitService.cloneRepo()`: Clones the remote repository.
+    -   `gitService.checkoutOrCreateBranch()`: Manages checkout/creation/reset of the working branch.
+    -   `gitService.pushBranch()`: Pushes a specified branch to the remote.
+    -   `gitService.getCurrentBranch()`: Gets the current local branch name.
+    -   `gitService.listBranches()`: Lists local and remote branches.
+    -   `_getGitInstance()`: Internal helper to create configured `simple-git` instances.
+
+5.  **Aider Service** (`lib/aider.js`)
+    -   `aiderService.initializeAider()`: Validates Aider configuration.
+    -   `aiderService.sendPromptToAider()`: Executes `runAider` from `@dguttman/aider-js` with context.
+
+6.  **Discord Test Double** (`lib/discord/discord-test.js`)
+    -   `MockClient`: Mock `discord.js` Client class.
+    -   `createMock...`: Factory functions for creating mock Discord objects (Message, Interaction, Channel, etc.).
+
+---
+
+## Glossary of codebase-specific terms
+
+1.  **`aiderService`**: Module wrapping the `@dguttman/aider-js` library (`lib/aider.js`).
+2.  **`coreService`**: The main module containing Discord-agnostic application logic, state management, and orchestration (`lib/core.js`).
+3.  **`coreStateStore`**: In-memory object within `core.js` holding the state for each active user (`lib/core.js`).
+4.  **`contextFiles`**: An array within a user's state (`userState`) tracking files/directories added to Aider's context, including their read-only status (`lib/core.js`).
+5.  **`discordAdapter`**: Module responsible for all interactions with the Discord API using `discord.js` (`lib/discord-adapter.js`).
+6.  **`Echoproxia`**: The HTTP request recording/replay proxy used during testing to capture and mock LLM API interactions (`tests/e2e.test.js`).
+7.  **`gitService`**: Module responsible for all Git operations, wrapping the `simple-git` library (`lib/git-service.js`).
+8.  **`globalRepoPath`**: Variable within `core.js` storing the filesystem path to the locally cloned Git repository (`lib/core.js`).
+9.  **`handleIncomingMessage`**: The primary function in `coreService` that processes user messages, routing them to command handlers or the Aider service (`lib/core.js`).
+10. **`initializeCore`**: Function in `coreService` responsible for setting up the Git repository (cloning/branch management) and initializing the core application state (`lib/core.js`).
+11. **`STARTING_BRANCH`**: Configuration value specifying the Git branch to base the `WORKING_BRANCH` on if it doesn't exist remotely (e.g., `main`) (`lib/config.js`).
+12. **`Test Double`**: A mock implementation of a dependency (like `discord.js`) used to isolate components during testing (`lib/discord/discord-test.js`).
+13. **`userState`**: The specific state object for a single user stored within `coreStateStore`, containing their current model, API settings, and context files (`lib/core.js`).
+14. **`WORKING_BRANCH`**: Configuration value specifying the Git branch where Aider makes and commits changes (e.g., `aider-bot-dev`) (`lib/config.js`).
+
+---
 
 ## Tech Stack
 
@@ -58,4 +208,9 @@ The application is split into two main modules:
 
 ## Testing Environment
 
-- **Framework:** Docker Compose (`
+- **Framework:** Docker Compose (`docker-compose.test.yml`) orchestrates the test environment.
+- **Components:**
+    - `git-server`: A container running SSHD and serving a bare Git repository initialized from `tests/fixtures/git-repo`. Uses a persistent SSH key (`tests/fixtures/ssh/id_test.pub`).
+    - `test-runner`: A container based on the Node.js image where tests are executed. Mounts the project code and SSH keys. Runs `npm test` via `scripts/run-tests.sh`.
+- **LLM Mocking:** `echoproxia` is used to record and replay interactions with the LLM API (OpenRouter by default). Recordings are stored in `tests/fixtures/recordings`.
+- **Execution:** Tests are run non-interactively using `npm test`, which executes `scripts/run-tests.sh` inside the `test-runner` container.
