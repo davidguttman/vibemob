@@ -1,3 +1,5 @@
+- ALWAYS update PROJECT.md to prevent it from going out of date our becoming out of sync with the project
+
 When writing javascript:
 - Never use classes
 - When creating functions with more than two arguments, use an options object instead of positional arguments. 
