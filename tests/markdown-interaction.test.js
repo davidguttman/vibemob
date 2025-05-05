@@ -1,144 +1,158 @@
-import test from 'ava';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
-import { coreService } from '../lib/index.js';
-import { gitService } from '../lib/index.js';
-import simpleGit from 'simple-git';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import config from '../lib/config.js';
-import debug from 'debug';
-import { createProxy } from 'echoproxia';
+import test from 'ava'
+import fs from 'fs/promises'
+import path from 'path'
+import os from 'os'
+import { coreService } from '../lib/index.js'
+import { gitService } from '../lib/index.js'
+import simpleGit from 'simple-git'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+import config from '../lib/config.js'
+import debug from 'debug'
+import { createProxy } from 'echoproxia'
 
 // ESM equivalent for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
-const log = debug('vibemob:test:markdown');
-const logError = debug('vibemob:test:markdown:error');
-logError.log = console.error.bind(console);
+const log = debug('vibemob:test:markdown')
+const logError = debug('vibemob:test:markdown:error')
+logError.log = console.error.bind(console)
 
-const REPO_URL = config.repoUrl;
-const RECORDING_NAME = 'markdown-rendering-test'; // Base name for recordings
+const REPO_URL = config.repoUrl
+const RECORDING_NAME = 'markdown-rendering-test' // Base name for recordings
 
-let tempDir;
-let testRepoPath;
-let testGitInstance;
-let proxy = null;
-let originalAiderApiBase = process.env.AIDER_API_BASE;
+let tempDir
+let testRepoPath
+let testGitInstance
+let proxy = null
+let originalAiderApiBase = process.env.AIDER_API_BASE
 
 // Setup similar to e2e.test.js
-test.beforeEach(async t => {
-  const targetApiBase = config.aiderApiBase;
-  const recordMode = true;
-  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings');
-  const testRecordingDir = path.join(recordingsDir, RECORDING_NAME);
+test.beforeEach(async (t) => {
+  const targetApiBase = config.aiderApiBase
+  const recordMode = true
+  const recordingsDir = path.resolve(__dirname, 'fixtures', 'recordings')
+  const testRecordingDir = path.join(recordingsDir, RECORDING_NAME)
 
   try {
-    await fs.mkdir(testRecordingDir, { recursive: true });
+    await fs.mkdir(testRecordingDir, { recursive: true })
     proxy = await createProxy({
       targetUrl: targetApiBase,
       recordingsDir: testRecordingDir,
       recordMode: recordMode,
       redactHeaders: ['authorization', 'x-api-key'],
       includePlainTextBody: true,
-      proxyPort: 0
-    });
-    log(`Echoproxia proxy started for test at ${proxy.url} (Mode: record)`);
-    const tempUserIdForConfig = '--test-config-setter--'; 
-    await coreService.setConfigOverrides({ 
-        userId: tempUserIdForConfig, 
-        apiBase: proxy.url 
-    });
-    log(`Set apiBase override via coreService to ${proxy.url}`);
+      proxyPort: 0,
+    })
+    log(`Echoproxia proxy started for test at ${proxy.url} (Mode: record)`)
+    const tempUserIdForConfig = '--test-config-setter--'
+    await coreService.setConfigOverrides({
+      userId: tempUserIdForConfig,
+      apiBase: proxy.url,
+    })
+    log(`Set apiBase override via coreService to ${proxy.url}`)
   } catch (err) {
-    logError('Failed to start Echoproxia proxy or set config:', err);
-    t.fail(`Failed to start Echoproxia or set config: ${err.message}`);
-    return;
+    logError('Failed to start Echoproxia proxy or set config:', err)
+    t.fail(`Failed to start Echoproxia or set config: ${err.message}`)
+    return
   }
 
-  tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'markdown-test-'));
-  testRepoPath = path.join(tempDir, 'repo');
-  log(`Setting up test repo for markdown test at ${testRepoPath}`);
+  tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'markdown-test-'))
+  testRepoPath = path.join(tempDir, 'repo')
+  log(`Setting up test repo for markdown test at ${testRepoPath}`)
 
   await t.notThrowsAsync(
     gitService.cloneRepo({ repoUrl: REPO_URL, localPath: testRepoPath }),
-    `Clone failed for markdown test`
-  );
+    `Clone failed for markdown test`,
+  )
 
-  testGitInstance = simpleGit(testRepoPath);
-  await testGitInstance.addConfig('user.email', `test-markdown@vibemob.invalid`, true, 'local');
-  await testGitInstance.addConfig('user.name', `Test Markdown User`, true, 'local');
-  log(`Git user configured for markdown test`);
+  testGitInstance = simpleGit(testRepoPath)
+  await testGitInstance.addConfig(
+    'user.email',
+    `test-markdown@vibemob.invalid`,
+    true,
+    'local',
+  )
+  await testGitInstance.addConfig(
+    'user.name',
+    `Test Markdown User`,
+    true,
+    'local',
+  )
+  log(`Git user configured for markdown test`)
 
   await t.notThrowsAsync(
-      coreService.initializeCore({ repoPath: testRepoPath }),
-      `Core init failed for markdown test`
-  );
-  log(`Core initialized for markdown test at ${testRepoPath}`);
-});
+    coreService.initializeCore({ repoPath: testRepoPath }),
+    `Core init failed for markdown test`,
+  )
+  log(`Core initialized for markdown test at ${testRepoPath}`)
+})
 
 test.afterEach.always(async () => {
   if (proxy && proxy.stop) {
-    await proxy.stop();
-    log('Echoproxia proxy stopped for test.');
-    proxy = null;
+    await proxy.stop()
+    log('Echoproxia proxy stopped for test.')
+    proxy = null
   }
-  const tempUserIdForConfig = '--test-config-setter--'; 
-  await coreService.setConfigOverrides({ 
-      userId: tempUserIdForConfig, 
-      apiBase: config.aiderApiBase
-  });
-  log(`Restored apiBase override via coreService to default`);
+  const tempUserIdForConfig = '--test-config-setter--'
+  await coreService.setConfigOverrides({
+    userId: tempUserIdForConfig,
+    apiBase: config.aiderApiBase,
+  })
+  log(`Restored apiBase override via coreService to default`)
 
   if (tempDir) {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(tempDir, { recursive: true, force: true })
   }
-});
+})
 
-test.serial('Generate markdown explanation', async t => {
-  const userId = 'markdown-tester';
+test.serial('Generate markdown explanation', async (t) => {
+  const userId = 'markdown-tester'
 
-  const explainPrompt = "Explain the concept of RESTful APIs using Markdown for formatting, including headings for key concepts, bullet points for principles, and code formatting for an example endpoint.";
-  log(`Sending explanation prompt: "${explainPrompt}"`);
+  const explainPrompt =
+    'Explain the concept of RESTful APIs using Markdown for formatting, including headings for key concepts, bullet points for principles, and code formatting for an example endpoint.'
+  log(`Sending explanation prompt: "${explainPrompt}"`)
   const response = await coreService.handleIncomingMessage({
     message: explainPrompt,
     userId: userId,
-  });
-  t.truthy(response, 'Did not get a response for the explanation request');
-  console.log('--- Explanation Response ---');
-  console.log(response);
+  })
+  t.truthy(response, 'Did not get a response for the explanation request')
+  console.log('--- Explanation Response ---')
+  console.log(response)
 
-  t.pass();
-});
+  t.pass()
+})
 
-test.serial('Generate full file output', async t => {
-  const userId = 'markdown-tester';
-  const readmePath = 'README.md';
+test.serial('Generate full file output', async (t) => {
+  const userId = 'markdown-tester'
+  const readmePath = 'README.md'
 
   // --- Add README.md to context ---
-  log(`Adding ${readmePath} to context for user ${userId}`);
+  log(`Adding ${readmePath} to context for user ${userId}`)
   let response = await coreService.handleIncomingMessage({
     message: `/add ${readmePath}`,
     userId: userId,
-  });
+  })
   // Adjust assertion based on expected core response for adding README.md
-  t.true(response?.includes('Added README.md to the chat context'), `Failed to add ${readmePath}. Response: ${response}`);
-  log('--- Context Add Response ---');
-  console.log(response);
+  t.true(
+    response?.includes('Added README.md to the chat context'),
+    `Failed to add ${readmePath}. Response: ${response}`,
+  )
+  log('--- Context Add Response ---')
+  console.log(response)
 
   // --- Ask for file content ---
-  const showPrompt = `Show me the full content of \`${readmePath}\``;
-  log(`Sending show prompt: "${showPrompt}"`);
+  const showPrompt = `Show me the full content of \`${readmePath}\``
+  log(`Sending show prompt: "${showPrompt}"`)
   response = await coreService.handleIncomingMessage({
     message: showPrompt,
     userId: userId,
-  });
-  t.truthy(response, 'Did not get a response for the show request');
-  console.log('--- Show File Response (stdout) ---');
-  console.log(response); // Log the raw stdout for analysis
+  })
+  t.truthy(response, 'Did not get a response for the show request')
+  console.log('--- Show File Response (stdout) ---')
+  console.log(response) // Log the raw stdout for analysis
 
   // We don't need to assert content here, just capture the output
-  t.pass();
-}); 
+  t.pass()
+})
