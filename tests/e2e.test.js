@@ -12,8 +12,8 @@ import debug from 'debug'
 
 // Placeholder for the actual service - this import will fail initially
 import { gitService } from '../lib/index.js'
-// RESTORE coreService import
-import { coreService } from '../lib/index.js'
+// Use namespace import for coreService
+import * as coreService from '../lib/index.js'
 // Import the new config
 import config from '../lib/config.js'
 
@@ -177,7 +177,7 @@ test('Phase 1.2 & 1.3: should clone remote repository via SSH and verify files',
   const localPath = path.join(tempDir, 'repo')
 
   /* // REMOVED PORT WAITING LOGIC
-  // --- Wait for git-server SSH port --- 
+  // --- Wait for git-server SSH port ---
   const host = 'git-server'; // Service name in docker-compose
   const port = 22;
   log(`Waiting for SSH port ${port} on host ${host}...`);
@@ -677,14 +677,16 @@ test('Phase 3.2 & 3.3: should handle message and receive response via core servi
   await t.notThrowsAsync(handleMessagePromise, 'handleIncomingMessage failed')
 
   const result = await handleMessagePromise
+  // Check if result is an object and has a content property
+  t.true(typeof result === 'object' && result !== null && 'content' in result, 'Result should be an object with a content property');
   t.not(
-    result,
+    result.content, // Access the content property
     'Placeholder response.',
     'Should receive a real response, not the placeholder',
   )
-  t.truthy(result, 'Should receive a non-empty response from Aider interaction')
-  log('Received Aider response (truncated): ', result.substring(0, 100) + '...')
-  t.true(result.includes('Hello!'), "Response should include 'Hello!'")
+  t.truthy(result.content, 'Should receive a non-empty response content from Aider interaction')
+  log('Received Aider response (truncated): ', result.content.substring(0, 100) + '...')
+  t.true(result.content.includes('Hello!'), "Response content should include 'Hello!'")
 })
 
 // --- Phase 3.4: Real Aider Edit (Direct Call on Main Branch) ---
@@ -795,15 +797,16 @@ test('Phase 4.1: should add a file to context using /add command', async (t) => 
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.1')
   await proxy.setSequence('phase4.1-verify-add', { recordMode: false })
 
-  const addCommand = `/add ${fileToAdd}`
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
+  // Use the new wrapper function
+  const addPromise = coreService.addFileToContext({
     userId: testUserId,
+    filePath: fileToAdd,
+    readOnly: true, // Assuming default read-only for this test
   })
   await t.notThrowsAsync(addPromise, `/add command failed`)
   const addResult = await addPromise
   t.true(
-    addResult.includes(`Added ${fileToAdd} to the chat context`),
+    addResult.message.includes(`Added ${fileToAdd} to the chat context`),
     'Response should confirm file addition',
   )
 
@@ -813,14 +816,14 @@ test('Phase 4.1: should add a file to context using /add command', async (t) => 
   })
   await t.notThrowsAsync(queryPromise, 'Query after /add failed')
   const queryResult = await queryPromise
-  t.truthy(queryResult, 'Should receive a response to the query')
+  t.truthy(queryResult.content, 'Should receive a response content to the query')
   t.true(
-    queryResult.toLowerCase().includes(expectedResponseFragment),
-    `Aider response should mention '${expectedResponseFragment}' after adding ${fileToAdd}. Response: ${queryResult}`,
+    queryResult.content.toLowerCase().includes(expectedResponseFragment),
+    `Aider response should mention '${expectedResponseFragment}' after adding ${fileToAdd}. Response: ${queryResult.content}`,
   )
   log(
     'Received Aider response for Phase 4.1 query (truncated): ',
-    queryResult.substring(0, 100) + '...',
+    queryResult.content.substring(0, 100) + '...',
   )
 })
 
@@ -835,15 +838,16 @@ test('Phase 4.2: should add a directory to context using /add command', async (t
   t.truthy(proxy, 'Echoproxia proxy should be running for Phase 4.2')
   await proxy.setSequence('phase4.2-verify-add-dir', { recordMode: false })
 
-  const addCommand = `/add ${dirToAdd}`
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
+  // Use the new wrapper function
+  const addPromise = coreService.addFileToContext({
     userId: testUserId,
+    filePath: dirToAdd,
+    readOnly: true, // Assuming default read-only
   })
   await t.notThrowsAsync(addPromise, `/add directory command failed`)
   const addResult = await addPromise
   t.true(
-    addResult.includes(`Added directory ${dirToAdd} to the chat context`),
+    addResult.message.includes(`Added directory ${dirToAdd} to the chat context`),
     'Response should confirm directory addition',
   )
 
@@ -853,19 +857,19 @@ test('Phase 4.2: should add a directory to context using /add command', async (t
   })
   await t.notThrowsAsync(queryPromise, 'Query after /add directory failed')
   const queryResult = await queryPromise
-  t.truthy(queryResult, 'Should receive a response to the query')
-  const lowerCaseResult = queryResult.toLowerCase()
+  t.truthy(queryResult.content, 'Should receive a response content to the query')
+  const lowerCaseResult = queryResult.content.toLowerCase()
   t.true(
     lowerCaseResult.includes(expectedResponseFragment1),
-    `Aider response should mention '${expectedResponseFragment1}'. Response: ${queryResult}`,
+    `Aider response should mention '${expectedResponseFragment1}'. Response: ${queryResult.content}`,
   )
   t.true(
     lowerCaseResult.includes(expectedResponseFragment2),
-    `Aider response should mention '${expectedResponseFragment2}'. Response: ${queryResult}`,
+    `Aider response should mention '${expectedResponseFragment2}'. Response: ${queryResult.content}`,
   )
   log(
     'Received Aider response for Phase 4.2 query (truncated): ',
-    queryResult.substring(0, 100) + '...',
+    queryResult.content.substring(0, 100) + '...',
   )
 })
 
@@ -882,18 +886,18 @@ test('Phase 4.3: should prevent modification of file added as read-only', async 
   const sequenceName = 'phase4.3-verify-add-readonly'
   await proxy.setSequence(sequenceName, { recordMode: false })
 
-  const addCommand = `/add ${fileToAdd}` // coreService adds as read-only by default now
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
+  // Use the new wrapper function, explicitly setting readOnly
+  const addPromise = coreService.addFileToContext({
     userId: testUserId,
+    filePath: fileToAdd,
+    readOnly: true,
   })
   await t.notThrowsAsync(addPromise, `/add command failed`)
   const addResult = await addPromise
   t.true(
-    addResult.includes(`Added ${fileToAdd} to the chat context`),
-    'Response should confirm file addition',
+    addResult.message.includes(`Added ${fileToAdd} to the chat context (read-only)`),
+    'Response should confirm read-only file addition',
   )
-  // TODO: Update coreService to explicitly handle read-only flag if needed (Comment remains)
 
   const modifyPromise = coreService.handleIncomingMessage({
     message: modifyPrompt,
@@ -901,18 +905,18 @@ test('Phase 4.3: should prevent modification of file added as read-only', async 
   })
   await t.notThrowsAsync(modifyPromise, 'Modification prompt failed')
   const modifyResult = await modifyPromise
-  t.truthy(modifyResult, 'Should receive a response to the modification prompt')
+  t.truthy(modifyResult.content, 'Should receive a response content to the modification prompt')
   t.false(
-    modifyResult.includes('<<<<<<< SEARCH'),
+    modifyResult.content.includes('<<<<<<< SEARCH'),
     'Aider response should not contain a diff block for read-only file',
   )
   t.false(
-    modifyResult.includes('>>>>>>> REPLACE'),
+    modifyResult.content.includes('>>>>>>> REPLACE'),
     'Aider response should not contain a diff block for read-only file',
   )
   log(
     'Received Aider response for Phase 4.3 query (truncated): ',
-    modifyResult.substring(0, 100) + '...',
+    modifyResult.content.substring(0, 100) + '...',
   )
 
   const finalContent = await fs.readFile(readmePath, 'utf-8')
@@ -934,15 +938,16 @@ test('Phase 4.4: should remove a file from context using /remove command', async
   const sequenceName = 'phase4.4-verify-remove'
   await proxy.setSequence(sequenceName, { recordMode: false })
 
-  const addCommand = `/add ${fileToRemove}`
-  const addPromise = coreService.handleIncomingMessage({
-    message: addCommand,
+  // Use addFileToContext wrapper
+  const addPromise = coreService.addFileToContext({
     userId: testUserId,
+    filePath: fileToRemove,
+    readOnly: true, // Assuming read-only for this test
   })
   await t.notThrowsAsync(addPromise, `/add command failed before remove`)
   const addResult = await addPromise
   t.true(
-    addResult.includes(`Added ${fileToRemove} to the chat context`),
+    addResult.message.includes(`Added ${fileToRemove} to the chat context`),
     'Add confirmation failed',
   )
 
@@ -957,20 +962,20 @@ test('Phase 4.4: should remove a file from context using /remove command', async
   )
   const initialQueryResult = await initialQueryPromise
   t.true(
-    initialQueryResult.toLowerCase().includes(originalContentFragment),
-    `Initial response should contain '${originalContentFragment}'. Response: ${initialQueryResult}`,
+    initialQueryResult.content.toLowerCase().includes(originalContentFragment),
+    `Initial response should contain '${originalContentFragment}'. Response: ${initialQueryResult.content}`,
   )
 
   log('Phase 4.4: Removing context...')
-  const removeCommand = `/remove ${fileToRemove}`
-  const removePromise = coreService.handleIncomingMessage({
-    message: removeCommand,
+  // Use removeFileFromContext wrapper
+  const removePromise = coreService.removeFileFromContext({
     userId: testUserId,
+    filePath: fileToRemove,
   })
   await t.notThrowsAsync(removePromise, `/remove command failed`)
   const removeResult = await removePromise
   t.true(
-    removeResult.includes(`Removed ${fileToRemove} from the chat context`),
+    removeResult.message.includes(`Removed ${fileToRemove} from the chat context`),
     'Response should confirm file removal',
   )
 
@@ -981,11 +986,11 @@ test('Phase 4.4: should remove a file from context using /remove command', async
   })
   await t.notThrowsAsync(finalQueryPromise, 'Final query after /remove failed')
   const finalQueryResult = await finalQueryPromise
-  t.truthy(finalQueryResult, 'Should receive a response to the final query')
+  t.truthy(finalQueryResult.content, 'Should receive a response content to the final query')
   // Removed commented assertion
   log(
     'Received Aider response for Phase 4.4 final query (truncated): ',
-    finalQueryResult.substring(0, 100) + '...',
+    finalQueryResult.content.substring(0, 100) + '...',
   )
 })
 
@@ -999,28 +1004,29 @@ test('Phase 4.5: should clear context using /clear command', async (t) => {
   const sequenceName = 'phase4.5-verify-clear'
   await proxy.setSequence(sequenceName)
 
-  await coreService.handleIncomingMessage({
-    message: `/add ${fileToAdd}`,
-    userId: testUserId,
-  })
-  await coreService.handleIncomingMessage({
-    message: `/add ${dirToAdd}`,
-    userId: testUserId,
-  })
-  // TODO: Verify coreState.contextFiles has README.md, src/index.js, src/server.js (Comment remains)
+  // Use wrapper functions
+  await coreService.addFileToContext({ userId: testUserId, filePath: fileToAdd, readOnly: true })
+  await coreService.addFileToContext({ userId: testUserId, filePath: dirToAdd, readOnly: true })
 
-  const clearCommand = '/clear'
-  const clearPromise = coreService.handleIncomingMessage({
-    message: clearCommand,
-    userId: testUserId,
-  })
+  // Verify context before clearing
+  const contextBefore = coreService.getContextFiles({ userId: testUserId });
+  t.true(contextBefore.some(f => f.path === fileToAdd), `Context should include ${fileToAdd} before clear`);
+  t.true(contextBefore.some(f => f.path.startsWith(dirToAdd + '/')), `Context should include files from ${dirToAdd} before clear`);
+
+
+  // Use wrapper function
+  const clearPromise = coreService.clearContext({ userId: testUserId })
   await t.notThrowsAsync(clearPromise, `/clear command failed`)
   const clearResult = await clearPromise
   t.true(
-    clearResult.includes('Chat context cleared.'),
+    clearResult.message.includes('Chat context cleared.'),
     'Response should confirm context clear',
   )
-  // TODO: Verify coreState.contextFiles is empty (Comment remains)
+
+  // Verify context after clearing
+  const contextAfter = coreService.getContextFiles({ userId: testUserId });
+  t.is(contextAfter.length, 0, 'Context should be empty after clear');
+
 
   const finalQuestion = 'Say hello.'
   const finalQueryPromise = coreService.handleIncomingMessage({
@@ -1029,10 +1035,10 @@ test('Phase 4.5: should clear context using /clear command', async (t) => {
   })
   await t.notThrowsAsync(finalQueryPromise, 'Final query after /clear failed')
   const finalQueryResult = await finalQueryPromise
-  t.truthy(finalQueryResult, 'Should receive a response to the final query')
+  t.truthy(finalQueryResult.content, 'Should receive a response content to the final query')
   log(
     'Received Aider response for Phase 4.5 final query (truncated): ',
-    finalQueryResult.substring(0, 100) + '...',
+    finalQueryResult.content.substring(0, 100) + '...',
   )
   // MANUAL CHECK: Inspect logs to ensure aiderOptions for the final call show empty context. (Comment remains)
 })
@@ -1048,11 +1054,15 @@ test('Phase 4.6: should demonstrate context token changes', async (t) => {
 
   // Helper to extract token counts (Keep helper)
   const getTokenCounts = (result) => {
-    if (!result || typeof result !== 'string')
-      return { sent: null, received: null }
+    // Check if result is the expected object structure
+    if (!result || typeof result !== 'object' || typeof result.content !== 'string') {
+      return { sent: null, received: null };
+    }
+    const content = result.content; // Extract the string content
+
     // Match variations: "X.Yk sent", "X sent"
-    const sentMatch = result.match(/Tokens: (\d+(?:\.\d+)?)(k?) sent/)
-    const receivedMatch = result.match(/(\d+) received/)
+    const sentMatch = content.match(/Tokens: (\d+(?:\.\d+)?)(k?) sent/)
+    const receivedMatch = content.match(/(\d+) received/)
 
     let sent = null
     if (sentMatch) {
@@ -1068,6 +1078,7 @@ test('Phase 4.6: should demonstrate context token changes', async (t) => {
     return { sent, received }
   }
 
+
   // --- Interaction 1: Initial Query (No Context) ---
   log('Test 4.6 - Interaction 1: Sending prompt')
   const initialQueryResult = await coreService.handleIncomingMessage({
@@ -1080,14 +1091,15 @@ test('Phase 4.6: should demonstrate context token changes', async (t) => {
 
   // --- Interaction 2: Query With Context ---
   log('Test 4.6 - Interaction 2: Adding file')
-  const addCommand = `/add ${fileToAdd}`
-  const addResult = await coreService.handleIncomingMessage({
-    message: addCommand,
+  // Use wrapper function
+  const addResult = await coreService.addFileToContext({
     userId: testUserId,
+    filePath: fileToAdd,
+    readOnly: true,
   })
   t.true(
-    addResult.includes(`Added ${fileToAdd}`),
-    `Add command confirmation missing. Got: ${addResult}`,
+    addResult.message.includes(`Added ${fileToAdd}`),
+    `Add command confirmation missing. Got: ${addResult.message}`,
   )
   log('Test 4.6 - Interaction 2: Sending prompt with context')
   const queryWithContextResult = await coreService.handleIncomingMessage({
@@ -1101,14 +1113,14 @@ test('Phase 4.6: should demonstrate context token changes', async (t) => {
 
   // --- Interaction 3: Remove File & Query (No Context Again) ---
   log('Test 4.6 - Interaction 3: Removing file')
-  const removeCommand = `/remove ${fileToAdd}`
-  const removeResult = await coreService.handleIncomingMessage({
-    message: removeCommand,
+  // Use wrapper function
+  const removeResult = await coreService.removeFileFromContext({
     userId: testUserId,
+    filePath: fileToAdd,
   })
   t.true(
-    removeResult.includes(`Removed ${fileToAdd}`),
-    `Remove command confirmation missing. Got: ${removeResult}`,
+    removeResult.message.includes(`Removed ${fileToAdd}`),
+    `Remove command confirmation missing. Got: ${removeResult.message}`,
   )
   log('Test 4.6 - Interaction 3: Sending final prompt')
   const finalQueryResult = await coreService.handleIncomingMessage({
@@ -1161,10 +1173,10 @@ test('Phase 5.2: should use the updated model for Aider interaction', async (t) 
     'handleIncomingMessage failed after setModel',
   )
   const result = await handleMessagePromise
-  t.truthy(result, 'Should receive a response after setting model')
+  t.truthy(result.content, 'Should receive a response content after setting model')
   // TODO: Add log inspection or ideally check the recorded Echoproxia request (Comment remains)
   log(
-    `Phase 5.2: Received response: ${result.substring(0, 100)}... Check logs/recording for model usage.`,
+    `Phase 5.2: Received response: ${result.content.substring(0, 100)}... Check logs/recording for model usage.`,
   )
   t.pass(
     'Phase 5.2 interaction completed. Manual/log check needed for model verification.',
@@ -1191,7 +1203,7 @@ test('Phase 6.1: should make a change via Aider and leave it unpushed', async (t
   })
   await t.notThrowsAsync(changePromise, 'Aider change request failed')
   const result = await changePromise
-  t.truthy(result, 'Should receive a response after change request')
+  t.truthy(result.content, 'Should receive a response content after change request')
   // TODO: Could add assertion here that result indicates success/diff applied (Comment remains)
 
   const readmeContent = await fs.readFile(
@@ -1264,6 +1276,9 @@ test('Phase 6.2: should push local changes to remote using core service', async 
 
   const pushPromise = coreService.pushChanges({ userId: testUserId })
   await t.notThrowsAsync(pushPromise, 'coreService.pushChanges failed')
+  const pushResult = await pushPromise; // Get the result
+  t.true(pushResult.message.includes('Successfully pushed changes'), 'Push result message should indicate success');
+
 
   await git.fetch('origin') // Fetch requires SSH, but coreService.pushChanges handles its own SSH env
 
@@ -1347,12 +1362,8 @@ test.serial('Phase 8.1: should handle /push command interaction', async (t) => {
 
   // Assert the result from pushChanges (expected structure)
   t.truthy(pushResult, 'pushChanges should return a result object')
-  t.true(pushResult.pushed, 'pushChanges result should indicate success')
-  t.is(
-    pushResult.branch,
-    WORKING_BRANCH,
-    `Pushed branch should be ${WORKING_BRANCH}`,
-  )
+  // Check the message property for success
+  t.true(pushResult.message.includes('Successfully pushed changes'), 'pushChanges result message should indicate success');
   log(`[Phase 8.1] coreService.pushChanges returned:`, pushResult)
 
   // 3. Verify changes pushed to remote by cloning fresh and checking content

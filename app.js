@@ -13,8 +13,10 @@ console.log(`Dotenv loaded from ${envPath} (exists: ${fs.existsSync(envPath)})`)
 // --- End .env load ---
 
 import debug from 'debug'
-import { coreService } from './lib/core.js'
-import { discordAdapter } from './lib/discord-adapter.js'
+// Changed to namespace import for coreService
+import * as coreService from './lib/core.js'
+// Changed to default import for discordAdapter
+import discordAdapter from './lib/discord-adapter.js'
 import config from './lib/config.js' // Import config AFTER dotenv has run
 
 const log = debug('vibemob:app')
@@ -31,16 +33,17 @@ async function main() {
   }
 
   try {
-    if (config.repoPath) {
-      log(`Initializing core service with repo path: ${config.repoPath}`)
-      await coreService.initializeCore({ repoPath: config.repoPath })
-      log('Core service initialized successfully.')
-    } else {
-      log('Skipping core service initialization as repoPath is not configured.')
-    }
+    // Note: discordAdapter.start() now initializes coreService internally AFTER login
+    // if (config.repoPath) {
+    //   log(`Initializing core service with repo path: ${config.repoPath}`)
+    //   await coreService.initializeCore({ repoPath: config.repoPath })
+    //   log('Core service initialized successfully.')
+    // } else {
+    //   log('Skipping core service initialization as repoPath is not configured.')
+    // }
 
     log('Starting Discord adapter...')
-    await discordAdapter.start() // Assuming start() handles login etc.
+    await discordAdapter.start() // Assuming start() handles login and core initialization
     log('Application started successfully.')
   } catch (error) {
     logError('Application failed to start:', error)
