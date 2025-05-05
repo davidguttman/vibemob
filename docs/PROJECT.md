@@ -20,6 +20,7 @@ Key capabilities:
 - LLM model selection via slash command (`/model`).
 - Pushing Aider-generated changes to the remote repository (`/push`).
 - Access control based on Discord guild and role.
+- Optional command prefixing via `COMMAND_PREFIX` environment variable (e.g., `/dev_add`).
 
 The bot serves developers or teams who want to leverage Aider's capabilities directly within their Discord workflow, facilitating collaborative coding and repository management through a conversational interface.
 
@@ -54,6 +55,7 @@ The bot serves developers or teams who want to leverage Aider's capabilities dir
 5.  **Configuration** (`lib/config.js`)
     -   Centralizes configuration management.
     -   Loads settings from environment variables and `.env` file (except in test environment).
+    -   Handles optional command prefixing (`COMMAND_PREFIX`).
 
 ### Main Files and Directories
 
@@ -83,10 +85,10 @@ The bot serves developers or teams who want to leverage Aider's capabilities dir
 │   ├── config.js              # Configuration management
 │   ├── core.js                # Core application logic, state management
 │   ├── discord/               # Discord-specific modules
-│   │   ├── commands.js        # Slash command definitions
+│   │   ├── commands.js        # Slash command definitions (handles prefixing)
 │   │   ├── discord-test.js    # Test double for discord.js
 │   │   └── index.js           # Conditional export for discord.js/discord-test.js
-│   ├── discord-adapter.js     # Handles Discord API interaction
+│   ├── discord-adapter.js     # Handles Discord API interaction (handles prefixing)
 │   ├── git-service.js         # Wrapper for simple-git operations
 │   ├── index.js               # Exports public library functions/modules
 │   └── utils.js               # Utility functions (e.g., message splitting)
@@ -95,7 +97,7 @@ The bot serves developers or teams who want to leverage Aider's capabilities dir
 ├── repomix-output.txt         # Merged codebase representation (for AI)
 ├── scripts/                   # Utility and helper scripts
 │   ├── debug-aider.js
-│   ├── deploy-commands.js     # Deploys Discord slash commands
+│   ├── deploy-commands.js     # Deploys Discord slash commands (handles prefixing)
 │   ├── reset-test-env.sh
 │   ├── run-single-test.sh
 │   └── run-tests.sh           # Main test execution script
@@ -118,7 +120,7 @@ The bot serves developers or teams who want to leverage Aider's capabilities dir
     -   `discordAdapter.start()`: Logs the client into Discord.
     -   `client.on(Events.ClientReady, ...)`: Handler for bot ready state.
     -   `client.on(Events.MessageCreate, ...)`: Handler for incoming messages (mentions, thread messages).
-    -   `client.on(Events.InteractionCreate, ...)`: Handler for slash commands and autocomplete.
+    -   `client.on(Events.InteractionCreate, ...)`: Handler for slash commands and autocomplete (handles command prefix).
     -   `_handleInitialMention()`: Creates thread and handles first prompt.
     -   `_handleThreadMessage()`: Processes subsequent messages in a thread.
     -   `_relayCoreResponse()`: Formats and sends core service responses to Discord.
@@ -167,6 +169,7 @@ The bot serves developers or teams who want to leverage Aider's capabilities dir
 12. **`Test Double`**: A mock implementation of a dependency (like `discord.js`) used to isolate components during testing (`lib/discord/discord-test.js`).
 13. **`userState`**: The specific state object for a single user stored within `coreStateStore`, containing their current model, API settings, and context files (`lib/core.js`).
 14. **`WORKING_BRANCH`**: Configuration value specifying the Git branch where Aider makes and commits changes (e.g., `aider-bot-dev`) (`lib/config.js`).
+15. **`COMMAND_PREFIX`**: Optional configuration value (`lib/config.js`) read from environment variable. If set (e.g., to `dev`), it prefixes all slash commands (e.g., `/dev_add`, `/dev_context`). Defaults to empty string (`''`).
 
 ---
 
