@@ -1,0 +1,1 @@
+aider --model openrouter/google/gemini-2.5-pro-preview-03-25 --api-key openrouter=$OPENROUTER_API_KEY --edit-format diff-fenced --lint-cmd "npm run lint:file -- " --test-cmd "npm test"
