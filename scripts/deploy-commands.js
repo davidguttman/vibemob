@@ -43,9 +43,7 @@ const rest = new REST({ version: '10' }).setToken(config.discordBotToken)
       { body: commandData }, // Send the potentially prefixed command data
     )
 
-    log(
-      `Successfully reloaded ${data.length} application (/) commands.`,
-    )
+    log(`Successfully reloaded ${data.length} application (/) commands.`)
   } catch (error) {
     logError('Failed to deploy commands:', error)
   }

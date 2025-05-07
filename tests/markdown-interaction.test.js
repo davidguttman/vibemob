@@ -120,7 +120,7 @@ test.serial('Generate markdown explanation', async (t) => {
   })
   t.truthy(response, 'Did not get a response for the explanation request')
   // Check the content property of the response object
-  t.truthy(response.content, 'Response content should not be empty');
+  t.truthy(response.content, 'Response content should not be empty')
   console.log('--- Explanation Response ---')
   console.log(response.content) // Log the content
 
@@ -155,7 +155,10 @@ test.serial('Generate full file output', async (t) => {
     userId: userId,
   })
   t.truthy(response, 'Did not get a response for the show request')
-  t.truthy(response.content, 'Response content should not be empty for show request');
+  t.truthy(
+    response.content,
+    'Response content should not be empty for show request',
+  )
   console.log('--- Show File Response (stdout) ---')
   console.log(response.content) // Log the raw stdout for analysis
 

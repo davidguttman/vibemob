@@ -52,6 +52,7 @@ services:
       - OPENROUTER_API_KEY
       # Also pass AIDER_TARGET_API for consistency (used by test setup)
       - AIDER_TARGET_API
+      - ECHOPROXIA_MODE
     depends_on:
       - git-server
     networks:
