@@ -113,22 +113,27 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Establish the concept of a planning session and store basic Q&A.
 *   **Tasks:**
     1.  **`lib/core.js` - User State Enhancement:**
-        *   Modify `getUserState` to include new fields for planning sessions:
-            *   `isPlanningSessionActive: boolean`
-            *   `planningSessionId: string` (e.g., Discord thread ID)
-            *   `chatHistory: Array<{ type: 'user' | 'ai', content: string, timestamp: Date }>`
-            *   `currentPlanFilePath: string | null`
-            *   `currentPhase: string` (e.g., 'planning-conversation', 'plan-review', 'implementation-review')
-        *   Initialize these appropriately.
+        *   In `getUserState(userId)`, when initializing state for a new user (or an existing user without planning state), add the following fields to the `userState` object:
+            *   `isPlanningSessionActive: false` (boolean)
+            *   `planningSessionId: null` (string, e.g., Discord thread ID)
+            *   `chatHistory: []` (Array of objects: `{ type: 'user' | 'ai', content: string, timestamp: Date }`)
+            *   `currentPlanFilePath: null` (string)
+            *   `currentPhase: null` (string, e.g., 'planning-conversation', 'plan-review', 'implementation-review')
     2.  **`lib/discord-adapter.js` - Detect Thread Creation:**
-        *   Listen for Discord `threadCreate` events.
-        *   When a thread is created with the bot, signal `core.js` to initialize a planning session for that thread ID and user.
-        *   Store a mapping of thread IDs to user IDs if necessary.
+        *   In `discordAdapter.start()`, add a new event listener: `client.on(Events.ThreadCreate, async (thread) => { ... })`.
+        *   Inside the handler, if the thread involves the bot (e.g., bot is a member or was mentioned in the parent message leading to thread creation - specifics TBD based on Discord.js capabilities):
+            *   Extract `userId` (thread creator or relevant user) and `threadId`.
+            *   Call a new function in `core.js`, e.g., `await coreService.startPlanningSession({ userId, threadId })`.
+            *   `coreService.startPlanningSession` will set `isPlanningSessionActive = true`, `planningSessionId = threadId`, and `currentPhase = 'planning-conversation'` in the user's state.
+        *   Consider how to map `threadId` back to `userId` if not directly available, potentially by inspecting thread parent or initial messages.
     3.  **`lib/core.js` - Basic Message Handling for Planning Threads:**
-        *   Modify `handleIncomingMessage`: If a message is from an active planning thread:
-            *   Add user's message to `chatHistory`.
-            *   For now, send a simple canned response or echo back (Aider Q&A integration comes next).
-            *   Add this canned response to `chatHistory`.
+        *   Modify `handleIncomingMessage({ userId, messageContent, channelId })` (assuming `messageContent` and `channelId` are passed from `discord-adapter.js`).
+        *   Retrieve `userState = getUserState(userId)`.
+        *   If `userState.isPlanningSessionActive && userState.planningSessionId === channelId`:
+            *   Add user's message: `userState.chatHistory.push({ type: 'user', content: messageContent, timestamp: new Date() })`.
+            *   For now, prepare a canned response: `const botResponse = "Message received in planning session."`
+            *   Add bot's response: `userState.chatHistory.push({ type: 'ai', content: botResponse, timestamp: new Date() })`.
+            *   Return `botResponse` to `discord-adapter.js` to send back to the thread.
     4.  **Testing:**
         *   Manually create a thread with the bot.
         *   Verify user state is updated in `core.js`.
@@ -139,13 +144,17 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Route messages from planning threads to Aider for Q&A and store responses.
 *   **Tasks:**
     1.  **`lib/aider.js` - Ensure Q&A Mode:**
-        *   Verify or create a function in `aider.js` that takes a prompt and returns a textual response without attempting file modifications (Q&A mode). This might involve passing specific flags or using a different Aider command.
+        *   Review `aiderService.sendPromptToAider(options)`.
+        *   For Q&A, `options.contextFiles` should likely be empty or not provided.
+        *   The `options.prompt` will be the user's message, potentially prefixed with a system message or prior conversation turns to maintain context for Aider.
+        *   Ensure `aider-js`'s `runAider` can be invoked in a mode that primarily returns text responses without requiring file edits, or that its output can be parsed to extract just the textual reply.
     2.  **`lib/core.js` - Aider Q&A Integration:**
-        *   In `handleIncomingMessage` for planning threads:
-            *   Instead of a canned response, call the Aider Q&A function with the user's message.
-            *   The prompt to Aider should likely include relevant context from `chatHistory` to maintain conversation flow. Decide on how much history to send.
-            *   Store Aider's response in `chatHistory`.
-            *   Send Aider's response back to the user in the Discord thread via `discord-adapter.js`.
+        *   In `handleIncomingMessage` for planning threads, when `userState.currentPhase === 'planning-conversation'`:
+            *   Replace the canned response logic.
+            *   Construct the `promptForAider`. This might involve taking the last N messages from `userState.chatHistory` and the current `messageContent`.
+            *   Call `const aiderResponseText = await aiderService.sendPromptToAider({ prompt: promptForAider, userId, repoPath: globalRepoPath, modelName: userState.currentModel, apiBase: userState.apiBase, apiKey: userState.apiKey })`.
+            *   Add Aider's response to chat history: `userState.chatHistory.push({ type: 'ai', content: aiderResponseText, timestamp: new Date() })`.
+            *   Return `aiderResponseText` to `discord-adapter.js`.
     3.  **Testing:**
         *   Start a planning session.
         *   Ask Aider questions. Verify responses are from Aider and the conversation is stored.
@@ -155,29 +164,36 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Allow users to trigger plan generation from chat history.
 *   **Tasks:**
     1.  **`lib/intent-recognizer.js` - Basic "Generate Plan" Intent:**
-        *   Create a new file `lib/intent-recognizer.js`.
-        *   Implement a simple function `recognizeIntent(message: string): string | null`.
-        *   Initially, use keywords (e.g., "generate plan", "make a plan").
+        *   Create `lib/intent-recognizer.js`.
+        *   Export `function recognizeIntent(messageText) { /* ... */ }`.
+        *   Initially, `if (messageText.toLowerCase().includes('generate plan') || messageText.toLowerCase().includes('make a plan')) return 'generate_plan'; return null;`.
     2.  **`lib/core.js` - Handle "Generate Plan" Intent:**
-        *   In `handleIncomingMessage`, after Aider Q&A, pass the user's message to `recognizeIntent`.
-        *   If "generate_plan" intent is detected:
-            *   Call a new function `_handleGeneratePlan(userId)`.
+        *   In `handleIncomingMessage`, after processing Q&A (if applicable), call `const intent = recognizeIntent(messageContent)`.
+        *   If `intent === 'generate_plan' && userState.currentPhase === 'planning-conversation'`:
+            *   Call `return await _handleGeneratePlan({ userId })`. (Return value will be message for Discord).
     3.  **`lib/aider.js` - Plan Generation Function:**
-        *   Create a function `generatePlanFromHistory(options: { chatHistory: Array<...>, repoPath: string, modelName: string, ... }): Promise<{ planContent: string, planFilePath: string }>`.
-        *   This function will format the `chatHistory` into a suitable prompt for Aider, instructing it to create a Markdown plan.
-        *   Aider should suggest a filename for the plan (e.g., `PLAN-[timestamp].md`) or the function can determine one.
-        *   Aider writes this file to the `repoPath`.
+        *   Create `async function generatePlanFromHistory(options: { chatHistory: Array<...>, repoPath: string, modelName: string, apiBase: string, apiKey: string, userId: string }): Promise<{ planContent: string, planFilePath: string }>` in `aiderService`.
+        *   Format `chatHistory` into a detailed prompt for Aider, instructing it to create a Markdown plan and output it to a unique filename (e.g., `docs/plan-${userId}-${Date.now()}.md`). The prompt should specify that Aider should write the plan to this file.
+        *   Use `aiderService.sendPromptToAider` or a similar call to `runAider` from `@dguttman/aider-js`, ensuring Aider is instructed to write the file.
+        *   The function should resolve with the content of the plan and its path.
     4.  **`lib/core.js` - `_handleGeneratePlan` Implementation:**
-        *   Retrieve `chatHistory` for the user.
-        *   Call `aider.generatePlanFromHistory`.
-        *   Store `planFilePath` in user state.
-        *   Update `currentPhase` to 'plan-review'.
+        *   Create `async function _handleGeneratePlan({ userId })`.
+        *   Retrieve `userState = getUserState(userId)`.
+        *   Call `const { planContent, planFilePath } = await aiderService.generatePlanFromHistory({ chatHistory: userState.chatHistory, repoPath: globalRepoPath, modelName: userState.currentModel, ...userState })`.
+        *   Update user state: `userState.currentPlanFilePath = planFilePath; userState.currentPhase = 'plan-review';`.
+        *   Return a message like `Plan generated: ${planFilePath}. Review it and suggest edits or approve for implementation.`.
     5.  **`lib/git-service.js` - Commit Plan:**
-        *   Ensure `git-service.js` can commit and push a specific new file.
-        *   After plan generation, call `git-service.commitAndPush({ localPath, filesToAdd: [planFilePath], message: 'feat(plan): Generate initial plan' })`.
+        *   Use or create `async function commitAndPushFiles({ localPath, filesToAdd, message, branchName })`. This function would:
+            *   `git.add(filesToAdd)`
+            *   `git.commit(message)`
+            *   `git.push(['--set-upstream', 'origin', branchName])` (as in existing `pushBranch`)
+        *   In `_handleGeneratePlan`, after `aider.generatePlanFromHistory` successfully writes the file:
+            *   `await gitService.commitAndPushFiles({ localPath: globalRepoPath, filesToAdd: [planFilePath], message: `feat(plan): Generate initial plan for ${userId}`, branchName: (await gitService.getCurrentBranch(globalRepoPath)) })`.
     6.  **`lib/discord-adapter.js` - Send Plan Link:**
-        *   After push, construct a GitHub preview link to the plan file. (Logic for this might be in `core.js` or `git-service.js`).
-        *   Send this link to the user.
+        *   In `_relayCoreResponse` (or similar function in `discord-adapter.js` that sends messages):
+            *   If the response from `core.js` indicates a plan has been generated (e.g., based on the message content or a structured response), construct the GitHub link.
+            *   Link construction: `https://${config.gitRepoUrl.split('/')[2]}/${config.gitRepoUrl.substring(config.gitRepoUrl.indexOf('/') + 1).replace('.git', '')}/blob/${branchName}/${planFilePath}`. (This needs to be robust for different GitHub URL formats).
+            *   Append this link to the message sent to Discord.
     7.  **Testing:**
         *   Have a conversation.
         *   Use the trigger phrase to generate a plan.
@@ -189,20 +205,26 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Allow users to request edits to the generated plan.
 *   **Tasks:**
     1.  **`lib/intent-recognizer.js` - Basic "Edit Plan" Intent:**
-        *   Add logic to detect edit requests (e.g., "change the plan", "edit step 1"). This will be very basic initially.
+        *   In `recognizeIntent(messageText)`, add: `if (messageText.toLowerCase().includes('edit plan') || messageText.toLowerCase().includes('change the plan')) return 'edit_plan';`.
     2.  **`lib/core.js` - Handle "Edit Plan" Intent:**
-        *   In `handleIncomingMessage`, if `currentPhase` is 'plan-review' and "edit_plan" intent is detected:
-            *   Call a new function `_handleEditPlan(userId, userEditRequest)`.
+        *   In `handleIncomingMessage`:
+            *   If `intent === 'edit_plan' && userState.currentPhase === 'plan-review'`:
+                *   Call `return await _handleEditPlan({ userId, userEditRequest: messageContent })`.
     3.  **`lib/aider.js` - Plan Editing Function:**
-        *   Create or adapt a function `editFile(options: { filePath: string, prompt: string, repoPath: string, modelName: string, ... }): Promise<void>`.
-        *   This function instructs Aider to edit the `filePath` (the plan file) based on `prompt` (the user's edit request).
+        *   Create `async function editFile(options: { filePath: string, prompt: string, repoPath: string, modelName: string, apiBase: string, apiKey: string, userId: string }): Promise<string>` in `aiderService`.
+        *   This function will use `aiderService.sendPromptToAider` or similar. The `options.prompt` will be the `userEditRequest`.
+        *   The `filePath` (the plan file) must be added to Aider's context for editing. This might involve modifying `sendPromptToAider` to accept a file to be edited, or ensuring the prompt clearly states "edit the file X with these changes Y".
+        *   It should return Aider's confirmation or summary of changes.
     4.  **`lib/core.js` - `_handleEditPlan` Implementation:**
-        *   Retrieve `currentPlanFilePath` and the `userEditRequest`.
-        *   Call `aider.editFile` with the plan file path and the user's request.
+        *   Create `async function _handleEditPlan({ userId, userEditRequest })`.
+        *   Retrieve `userState = getUserState(userId)`. Ensure `userState.currentPlanFilePath` exists.
+        *   Call `const aiderConfirmation = await aiderService.editFile({ filePath: userState.currentPlanFilePath, prompt: userEditRequest, repoPath: globalRepoPath, ...userState })`.
+        *   Return a message like `Plan updated. ${aiderConfirmation}. Review the changes.`.
     5.  **`lib/git-service.js` - Commit Plan Edits:**
-        *   After plan edit, call `git-service.commitAndPush({ localPath, filesToAdd: [currentPlanFilePath], message: 'feat(plan): Update plan based on user feedback' })`.
+        *   In `_handleEditPlan`, after `aiderService.editFile`:
+            *   `await gitService.commitAndPushFiles({ localPath: globalRepoPath, filesToAdd: [userState.currentPlanFilePath], message: `fix(plan): Update plan for ${userId} based on feedback`, branchName: (await gitService.getCurrentBranch(globalRepoPath)) })`.
     6.  **`lib/discord-adapter.js` - Send Updated Plan Link:**
-        *   Send the GitHub preview link for the modified plan.
+        *   Same logic as in Phase 3, using `userState.currentPlanFilePath`.
     7.  **Testing:**
         *   Generate a plan.
         *   Request an edit.
@@ -214,22 +236,33 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Allow users to trigger Aider to implement the current plan.
 *   **Tasks:**
     1.  **`lib/intent-recognizer.js` - Basic "Implement Plan" Intent:**
-        *   Add logic for "implement plan", "apply this plan".
+        *   In `recognizeIntent(messageText)`, add: `if (messageText.toLowerCase().includes('implement plan') || messageText.toLowerCase().includes('apply this plan')) return 'implement_plan';`.
     2.  **`lib/core.js` - Handle "Implement Plan" Intent:**
-        *   In `handleIncomingMessage`, if `currentPhase` is 'plan-review' and "implement_plan" intent is detected:
-            *   Call a new function `_handleImplementPlan(userId)`.
+        *   In `handleIncomingMessage`:
+            *   If `intent === 'implement_plan' && userState.currentPhase === 'plan-review'`:
+                *   Call `return await _handleImplementPlan({ userId })`.
     3.  **`lib/aider.js` - Implementation Function:**
-        *   Create a function `implementPlan(options: { planFilePath: string, repoPath: string, modelName: string, ... }): Promise<void>`.
-        *   This instructs Aider to read `planFilePath` and apply the changes to the codebase.
+        *   Create `async function implementPlan(options: { planFilePath: string, repoPath: string, modelName: string, apiBase: string, apiKey: string, userId: string }): Promise<string>` in `aiderService`.
+        *   The prompt to Aider should be to implement the plan specified in `planFilePath`. This means Aider needs to read this file and then apply changes to other files in the `repoPath`.
+        *   The `planFilePath` should be added to Aider's context. Other project files might also need to be added based on the plan's content, or Aider can be allowed to auto-select files.
+        *   This will use `aiderService.sendPromptToAider` or a similar `runAider` call.
+        *   It should return Aider's summary of implemented changes.
     4.  **`lib/core.js` - `_handleImplementPlan` Implementation:**
-        *   Retrieve `currentPlanFilePath`.
-        *   Call `aider.implementPlan`.
-        *   Update `currentPhase` to 'implementation-review'.
+        *   Create `async function _handleImplementPlan({ userId })`.
+        *   Retrieve `userState = getUserState(userId)`. Ensure `userState.currentPlanFilePath` exists.
+        *   Call `const aiderSummary = await aiderService.implementPlan({ planFilePath: userState.currentPlanFilePath, repoPath: globalRepoPath, ...userState })`.
+        *   Update `userState.currentPhase = 'implementation-review';`.
+        *   Return a message like `Plan implementation attempted. ${aiderSummary}. Review the changes.`.
     5.  **`lib/git-service.js` - Commit Implementation:**
-        *   After implementation, Aider should have made commits, or `git-service` needs to capture changes and commit. Aider's standard auto-commit should handle this. Ensure it's pushed.
-        *   If Aider doesn't auto-push, add `git-service.push({ localPath, branchName })`.
+        *   Aider's `runAider` (via `aiderService.implementPlan`) should ideally handle its own commits if `autoCommits` is enabled in `aider-js`.
+        *   After `aiderService.implementPlan` completes, explicitly push the changes:
+            *   `const currentBranch = await gitService.getCurrentBranch(globalRepoPath);`
+            *   `await gitService.pushBranch({ localPath: globalRepoPath, branchName: currentBranch })`.
+            *   Store the latest commit SHA: `const commitSha = (await gitService.log(globalRepoPath, ['-1', '--pretty=format:"%H"'])).latest.hash;`. (Requires `log` function in `gitService`).
     6.  **`lib/discord-adapter.js` - Send Diff Link:**
-        *   Construct and send a GitHub diff link for the latest commit.
+        *   In `_relayCoreResponse`, if the response indicates implementation:
+            *   Construct GitHub diff link: `https://${config.gitRepoUrl.split('/')[2]}/${config.gitRepoUrl.substring(config.gitRepoUrl.indexOf('/') + 1).replace('.git', '')}/commit/${commitSha}`.
+            *   Append this link to the message.
     7.  **Testing:**
         *   Generate and approve a simple plan.
         *   Trigger implementation.
@@ -241,18 +274,25 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Handle user feedback on implementation by undoing, updating plan, and re-implementing.
 *   **Tasks:**
     1.  **`lib/intent-recognizer.js` - Basic "Revise Implementation" Intent:**
-        *   This is more complex. Initially, any message after implementation could be treated as a revision request if not an explicit approval (which we are not waiting for).
+        *   In `recognizeIntent(messageText)`, add logic. For now, any message in `implementation-review` phase that isn't another recognized command could be `revise_implementation`.
+        *   `if (userState.currentPhase === 'implementation-review' && !['generate_plan', 'edit_plan', 'implement_plan'].includes(recognizedIntentSoFar)) return 'revise_implementation';`
     2.  **`lib/core.js` - Handle "Revise Implementation" Intent:**
-        *   In `handleIncomingMessage`, if `currentPhase` is 'implementation-review' and a message is received (interpreted as feedback/revision):
-            *   Call `_handleReviseImplementation(userId, userFeedback)`.
+        *   In `handleIncomingMessage`:
+            *   If `intent === 'revise_implementation' && userState.currentPhase === 'implementation-review'`:
+                *   Call `return await _handleReviseImplementation({ userId, userFeedback: messageContent })`.
     3.  **`lib/aider.js` - Undo Function:**
-        *   Ensure Aider has an "undo last commit" capability accessible via `aider.js`, e.g., `undoLastCommit(options: { repoPath: string, ... }): Promise<void>`.
+        *   Create `async function undoLastCommit(options: { repoPath: string, modelName: string, ...userId: string }): Promise<string>` in `aiderService`.
+        *   This function will instruct Aider to perform its undo operation (e.g., by sending `/undo` command to `aider-js`'s `runAider`).
+        *   It should return Aider's confirmation.
     4.  **`lib/core.js` - `_handleReviseImplementation` Implementation:**
-        *   Call `aider.undoLastCommit`.
-        *   Call `git-service.push` to push the revert.
-        *   Treat `userFeedback` as an edit request to the `currentPlanFilePath`. Call `_handleEditPlan(userId, userFeedback)` (or a refactored version). This will update the plan and commit/push it.
-        *   Once plan is updated, automatically call `_handleImplementPlan(userId)` again.
-        *   The `currentPhase` remains 'implementation-review' or cycles appropriately.
+        *   Create `async function _handleReviseImplementation({ userId, userFeedback })`.
+        *   `userState = getUserState(userId)`.
+        *   `const undoConfirmation = await aiderService.undoLastCommit({ repoPath: globalRepoPath, ...userState })`.
+        *   Push the revert: `await gitService.pushBranch({ localPath: globalRepoPath, branchName: (await gitService.getCurrentBranch(globalRepoPath)) })`.
+        *   Update the plan: `const editConfirmation = await _handleEditPlan({ userId, userEditRequest: userFeedback })`. (This already commits and pushes the plan change).
+        *   Re-implement: `const implementSummary = await _handleImplementPlan({ userId })`.
+        *   Return a composite message: `Undo: ${undoConfirmation}. Plan updated: ${editConfirmation}. New implementation attempt: ${implementSummary}. Review new changes.`.
+        *   The `currentPhase` will be set to `implementation-review` by `_handleImplementPlan`.
     5.  **Testing:**
         *   Implement a plan.
         *   Provide feedback ("this is wrong, change X").
@@ -264,14 +304,17 @@ This plan is broken down into phases to allow for incremental development and te
 *   **Objective:** Replace basic intent recognizer with a more robust LLM-based one.
 *   **Tasks:**
     1.  **Research & Setup:**
-        *   Choose a small LLM (e.g., GPT-4o Mini via OpenAI API).
-        *   Set up API access and any necessary SDKs. Add to `config.js`.
+        *   Choose a small LLM (e.g., GPT-4o Mini via OpenAI API or a model available on OpenRouter).
+        *   Add new configuration to `lib/config.js` for the intent LLM (e.g., `INTENT_MODEL_NAME`, `INTENT_API_BASE`, `INTENT_API_KEY`). These might default to the main Aider LLM settings or be distinct.
     2.  **`lib/intent-recognizer.js` - LLM Integration:**
-        *   Modify `recognizeIntent` to call the chosen LLM.
-        *   Develop effective prompts for intent classification (e.g., "Is the user asking to generate a plan, edit a plan, implement a plan, providing feedback on implementation, or just chatting?").
-        *   Map LLM responses to standardized intent keys.
+        *   Modify `recognizeIntent(messageText, chatHistory, currentPhase)` to take more context.
+        *   Construct a prompt for the intent LLM. This prompt should include the user's current message, potentially the last few turns of `chatHistory`, and the `currentPhase` to help the LLM understand context.
+        *   Example prompt: "Given the current phase is '{currentPhase}' and the recent conversation history is '{chatHistory}', the user just said: '{messageText}'. Classify the user's intent. Possible intents are: 'continue_chat', 'generate_plan', 'edit_plan', 'implement_plan', 'revise_implementation'. Respond with only the intent string."
+        *   Call the intent LLM (this might involve a new helper function in `lib/aider.js` or a direct API call if using a different client).
+        *   Parse the LLM's response to get the intent string.
     3.  **`lib/core.js` - Update Intent Usage:**
-        *   Ensure `core.js` correctly uses the new intent keys and handles cases where intent is ambiguous or simply "chatting" (continue Q&A).
+        *   When calling `recognizeIntent` from `handleIncomingMessage`, pass the necessary context: `recognizeIntent(messageContent, userState.chatHistory, userState.currentPhase)`.
+        *   If intent is 'continue_chat', proceed with Phase 2 Q&A logic.
     4.  **Refinement & Testing:**
         *   Test extensively with various natural language phrases.
         *   Refine prompts and logic for accuracy.
