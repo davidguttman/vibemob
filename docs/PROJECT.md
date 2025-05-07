@@ -70,14 +70,20 @@ The bot serves developers or teams who want to leverage Aider's capabilities for
 
 4.  **Git Service** (`lib/git-service.js`)
     -   Wraps `simple-git` library for all Git operations.
-    -   Handles cloning, branch checking, creation, pulling, pushing, and resetting.
+    -   Handles cloning, branch checking, creation, committing, pulling, pushing, and resetting.
     -   Manages SSH key configuration for remote operations.
+    -   (Potentially) Assists in generating GitHub preview/diff links.
 
-4.  **Aider Service** (`lib/aider.js`)
+5.  **Aider Service** (`lib/aider.js`)
     -   Wraps the `@dguttman/aider-js` library.
-    -   Provides functions to initialize and run Aider with appropriate context and configuration.
+    -   Provides functions to initialize and run Aider for various tasks:
+        -   Q&A during conversational planning.
+        -   Generating Markdown plan files from chat history.
+        -   Editing plan files based on user feedback.
+        -   Implementing code changes based on a plan file.
+        -   Undoing previous commits.
 
-5.  **Configuration** (`lib/config.js`)
+6.  **Configuration** (`lib/config.js`)
     -   Centralizes configuration management.
     -   Loads settings from environment variables and `.env` file (except in test environment).
     -   Handles optional command prefixing (`COMMAND_PREFIX`).
