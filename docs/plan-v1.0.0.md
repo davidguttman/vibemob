@@ -176,10 +176,61 @@ This plan is broken down into phases to allow for incremental development and te
       - In `handleIncomingMessage`, after processing Q&A (if applicable), call `const intent = recognizeIntent(messageContent)`.
       - If `intent === 'generate_plan' && userState.currentPhase === 'planning-conversation'`:
         - Call `return await _handleGeneratePlan({ userId })`. (Return value will be message for Discord).
-  3.  **`lib/aider.js` - Plan Generation Function:**
-      - Create `async function generatePlanFromHistory(options: { chatHistory: Array<...>, repoPath: string, modelName: string, apiBase: string, apiKey: string, userId: string }): Promise<{ planContent: string, planFilePath: string }>` in `aiderService`.
+  3.  **`lib/core.js` (or new helper `lib/context-analyzer.js`) - Context File Identification:**
+      - Create a function, e.g., `async function identifyContextFilesFromHistory({ chatHistory, repoPath, modelName, apiBase, apiKey, userId })`.
+      - This function will:
+        - Format `chatHistory` into a prompt for an LLM. The prompt should ask the LLM to identify existing files in the repository that are relevant to the conversation and would be useful context for generating a plan. The LLM should be asked to return these as a JSON array of relative file paths.
+        - Example prompt: "Based on the following conversation, list all existing file paths in the repository that are relevant for understanding the context and generating a detailed plan. Return the list as a JSON array of strings (e.g., `[\"src/utils.js\", \"lib/core.js\"]`). If no files are relevant or you are unsure, return an empty array. Conversation: \n\n{formatted_chat_history}".
+        - Call an LLM (this could use `aiderService.sendPromptToAider` configured for pure text response with no file edits, or a dedicated LLM utility if the intent LLM infrastructure is separate and suitable). The LLM used for this might be the `intentModelName` or the main `defaultModel`.
+        - Parse the LLM's response. Attempt to `JSON.parse()` the output. Handle potential errors in parsing (e.g., if the LLM doesn't return valid JSON, default to an empty list).
+        - Validate the identified file paths:
+            - Ensure they are relative paths and do not contain `..` components.
+            - Check if they exist within `repoPath` using `fs.promises.stat` (or a helper in `git-service.js` that can check existence without throwing for non-existent files).
+            - Filter out any non-existent or invalid paths.
+        - Return the validated list of relative file paths.
+  4.  **`lib/aider.js` - Plan Generation Function:**
+      - Create `async function generatePlanFromHistory(options: { chatHistory: Array<...>, repoPath: string, modelName: string, apiBase: string, apiKey: string, userId: string, identifiedContextFiles?: Array<string> }): Promise<{ planContent: string, planFilePath: string }>` in `aiderService`.
       - Format `chatHistory` into a detailed prompt for Aider, instructing it to create a Markdown plan and output it to a unique filename (e.g., `docs/plan-${userId}-${Date.now()}.md`). The prompt should specify that Aider should write the plan to this file.
-      - Use `aiderService.sendPromptToAider` or a similar call to `runAider` from `@dguttman/aider-js`, ensuring Aider is instructed to write the file.
+      - If `identifiedContextFiles` are provided and not empty, the prompt to Aider should also state: "For your reference, the following existing files from the repository have been identified as relevant to this discussion and are provided as read-only context: {identifiedContextFiles.join(', ')}. Please use them to inform the plan you generate."
+      - Use `aiderService.sendPromptToAider` or a similar call to `runAider` from `@dguttman/aider-js`.
+        - `options.editableFiles` for `sendPromptToAider` should be `[planFileName]` (the new plan file Aider is to create).
+        - `options.readOnlyFiles` for `sendPromptToAider` should be `options.identifiedContextFiles || []`.
+      - The function should resolve with the content of the plan and its path.
+  5.  **`lib/core.js` - `_handleGeneratePlan` Implementation:**
+      - Retrieve `userState = getUserState(userId)`.
+      - **New Step:** Call the context identification function:
+        ```javascript
+        const identifiedFiles = await identifyContextFilesFromHistory({
+            chatHistory: userState.chatHistory,
+            repoPath: globalRepoPath,
+            modelName: userState.intentModelName || config.intentModelName, // Or main model
+            apiBase: userState.intentApiBase || config.intentApiBase,     // Or main base
+            apiKey: userState.intentApiKey || config.aiderApiKey,         // Or main key
+            userId,
+        });
+        log(`Identified context files for plan generation: ${identifiedFiles.join(', ')}`);
+        ```
+      - Call `const { planContent, planFilePath } = await aiderService.generatePlanFromHistory({ chatHistory: userState.chatHistory, repoPath: globalRepoPath, modelName: userState.currentModel, ...userState, identifiedContextFiles: identifiedFiles })`.
+      - Update user state: `userState.currentPlanFilePath = planFilePath; userState.currentPhase = 'plan-review';`.
+      - Return a message like `Plan generated: ${planFilePath}. Review it and suggest edits or approve for implementation. ${identifiedFiles.length > 0 ? 'Used context from: ' + identifiedFiles.join(', ') : ''}`.
+  6.  **`lib/git-service.js` - Commit Plan:**
+      - Use or create `async function commitAndPushFiles({ localPath, filesToAdd, message, branchName })`. This function would:
+        - `git.add(filesToAdd)`
+        - `git.commit(message)`
+        - `git.push(['--set-upstream', 'origin', branchName])` (as in existing `pushBranch`)
+      - In `_handleGeneratePlan`, after `aider.generatePlanFromHistory` successfully writes the file:
+        - `await gitService.commitAndPushFiles({ localPath: globalRepoPath, filesToAdd: [planFilePath], message: `feat(plan): Generate initial plan for ${userId}`, branchName: (await gitService.getCurrentBranch(globalRepoPath)) })`.
+  7.  **`lib/discord-adapter.js` - Send Plan Link:**
+      - In `_relayCoreResponse` (or similar function in `discord-adapter.js` that sends messages):
+        - If the response from `core.js` indicates a plan has been generated (e.g., based on the message content or a structured response), construct the GitHub link.
+        - Link construction: `https://${config.gitRepoUrl.split('/')[2]}/${config.gitRepoUrl.substring(config.gitRepoUrl.indexOf('/') + 1).replace('.git', '')}/blob/${branchName}/${planFilePath}`. (This needs to be robust for different GitHub URL formats).
+        - Append this link to the message sent to Discord.
+  8.  **Testing:**
+      - Have a conversation.
+      - Use the trigger phrase to generate a plan.
+      - Verify plan file is created in the repo, committed, pushed.
+      - Verify link is sent and works.
+      - **New:** Verify that if relevant files are discussed, they are identified and Aider is (mock) called with them as read-only context. Check logs for `identifiedContextFiles`.
       - The function should resolve with the content of the plan and its path.
   4.  **`lib/core.js` - `_handleGeneratePlan` Implementation:**
       - Create `async function _handleGeneratePlan({ userId })`.
