@@ -133,8 +133,13 @@ This guide demonstrates how to interact with the Vibemob bot in Discord.
     *   The core service has the capability to push the committed changes from the bot's working branch (`WORKING_BRANCH`) to the remote repository (`origin`).
     *   Currently, there is no dedicated `/push` slash command implemented in the Discord adapter. This action might be triggered through a specific phrase in your conversation or require manual intervention by an administrator, depending on the final implementation details. Refer to the bot's operational procedures or maintainers for how to trigger a push.
 
-## TODO
+## Implementation Progress
 
+### Completed Phases
+- [x] **Phase 1: Basic Planning Session & In-Memory Chat History** - Implemented planning session initialization, thread creation detection, and in-memory chat history storage.
+- [x] **Phase 2: Conversational Planning (Aider Q&A Integration)** - Integrated Aider Q&A mode for planning sessions, enabling natural conversation flow with context awareness.
+
+### TODO
 - [ ] Pushing changes
 - [ ] Configurable logging channel in Discord
 - [ ] Pretty display of diffs/code blocks within Discord messages
