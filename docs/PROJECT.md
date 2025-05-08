@@ -7,13 +7,14 @@ See `docs/SPEC_v0.1.md` for the detailed v0.1 specification.
 See `docs/plan-v0.1.0.md` for the v0.1 development plan.
 See `docs/plan-v0.2.0.md` for the v0.2 feature development plan.
 See `docs/plan-v1.0.0.md` for the v1.0.0 feature development plan.
+_Note: v1.0.0 represents a future planned version, and its development has not yet started._
 
 ---
 
 ## Overview
 
 The Aider Discord Bot integrates `@dguttman/aider-js` with Discord.
-For v1.0.0, the bot introduces an interactive, phased workflow:
+The v1.0.0 plan outlines an interactive, phased workflow:
 
 1.  **Conversational Planning:** Users engage in Q&A with Aider in a dedicated Discord thread to build a chat history.
 2.  **Plan Generation:** Aider uses the chat history to generate a Markdown plan file in the repository.
